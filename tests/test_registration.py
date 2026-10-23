@@ -90,7 +90,7 @@ async def test_student_picks_class_by_category(env):
     # уведомили только учителя 3А; админ видит зачисление в журнале
     notices = [m for m in client.sent[sent_before:] if m[1].startswith("🆕 Новый ученик")]
     assert [m[0] for m in notices] == [7]
-    assert payloads(notices[0][2]) == [f"enr:del:{student.id}:{cid}", f"enr:mv:{student.id}:{cid}"]
+    assert payloads(notices[0][2]) == [f"enr:del:{student.id}:{cid}", f"enr:mv:{student.id}:{cid}", "menu:main"]
     await bot.handle_update(cb(ADMIN, "enl:0"))
     assert "Сидоров Пётр · 3А" in " ".join(texts(client.answers[-1]["attachments"]))
 
@@ -160,7 +160,7 @@ async def test_teacher_application_flow(env):
 
     notice = next(m for m in client.sent if m[0] == ADMIN and "Заявка на роль учителя" in m[1])
     assert "Классы, которые выбрал учитель: 5Б, 6А" in notice[1]
-    assert payloads(notice[2]) == [f"tr:ok:{request.id}", f"tr:no:{request.id}", f"tr:edit:{request.id}"]
+    assert payloads(notice[2]) == [f"tr:ok:{request.id}", f"tr:no:{request.id}", f"tr:edit:{request.id}", "menu:main"]
 
     # пока ждёт — только статус заявки
     await bot.handle_update(msg(9, "/start"))
@@ -268,7 +268,7 @@ async def test_teacher_asks_admin_to_transfer(env):
     assert "отправлен администратору" in client.answers[-1]["notification"]
     to, text, att = client.sent[-1]
     assert to == ADMIN and "просит перевести ученика Иванов Иван" in text
-    assert payloads(att) == [f"cls:mv:{student.id}", f"cls:del:{student.id}"]
+    assert payloads(att) == [f"cls:mv:{student.id}", f"cls:del:{student.id}", "menu:main"]
 
 
 async def test_other_teacher_cannot_remove(env):

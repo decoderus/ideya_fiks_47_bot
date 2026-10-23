@@ -92,6 +92,8 @@ class User(Base):
     balance: Mapped[int] = mapped_column(Integer, default=0)
     # Ученик отключил утренние напоминания о сериях
     reminders_off: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
+    # Открывал ли «ℹ️ Помощь»: до первого просмотра кнопка — первая в меню, потом — последняя
+    help_seen: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
     # Текущий шаг диалога (ввод ФИО, создание квеста, ожидание фото) и его данные
     state: Mapped[str | None] = mapped_column(String(32), nullable=True)
     state_data: Mapped[dict | None] = mapped_column(JSON, nullable=True)

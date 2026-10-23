@@ -11,6 +11,7 @@ import httpx
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from app import help_texts
 from app import keyboards as kb
 from app.db.models import (
     OrderStatus,
@@ -306,6 +307,9 @@ class Bot(
         if text.startswith("/start"):
             await users_service.set_state(session, user, None)
             return self._menu(user)
+        if text.startswith("/help"):
+            await users_service.set_state(session, user, None)
+            return await self._help(session, user)
         if text.startswith("/role"):
             return await self._cmd_role(session, user, text)
         if text.startswith("/modreview"):
@@ -368,6 +372,8 @@ class Bot(
 
         if payload == "menu:main":
             return self._menu(user)
+        if payload == "menu:help":
+            return await self._help(session, user)
         if payload == "cancel":
             return self._menu(user, "Действие отменено.")
         if payload == "menu:quests":
@@ -530,7 +536,16 @@ class Bot(
         if self.demo:
             lines.append("🧪 Демо-версия: /demo — сменить роль")
         lines.append("Выберите раздел:")
-        return "\n".join(lines), kb.menu_for(user.role, self.moderator_review)
+        return "\n".join(lines), kb.menu_for(
+            user.role, self.moderator_review, help_first=not user.help_seen
+        )
+
+    async def _help(self, session: AsyncSession, user: User) -> Screen:
+        """«ℹ️ Помощь» и /help: справка по меню своей роли."""
+        if not user.help_seen:
+            user.help_seen = True  # дальше кнопка уходит в конец меню
+            await session.commit()
+        return help_texts.help_text(user.role), kb.back_to_menu()
 
     async def _cmd_role(self, session: AsyncSession, me: User, text: str) -> Screen:
         """/role <max_user_id> <admin|moderator|teacher|student> — только для админов."""

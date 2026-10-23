@@ -78,7 +78,7 @@ async def test_teacher_answers_admin_clarifies(env):
     assert f"q:open:{qid}" in payloads(att)
     admin_text, admin_att = notices(client, ADMIN)[-1]
     assert "Учителева Анна (учитель) ответил(а)" in admin_text
-    assert payloads(admin_att) == [f"qa:ans:{question}"]
+    assert payloads(admin_att) == [f"qa:ans:{question}", "menu:main"]
     assert buttons(admin_att)[0]["text"] == "✍️ Уточнить ответ"
 
     # модератор и другой учитель отвечать уже не могут
@@ -211,7 +211,7 @@ async def test_general_question_from_menu(env):
     assert "— Модеров Максим, модератор" in text and "menu:main" in payloads(att)
     admin_text, admin_att = notices(client, ADMIN)[-1]
     assert "на вопрос ученика Иванов Иван." in admin_text  # без «по квесту»
-    assert payloads(admin_att) == [f"qa:ans:{question}"]
+    assert payloads(admin_att) == [f"qa:ans:{question}", "menu:main"]
     await bot.handle_update(cb(ADMIN, "menu:questions"))
     assert buttons(client.answers[-1]["attachments"])[0]["text"].startswith("✅ Общий вопрос")
 

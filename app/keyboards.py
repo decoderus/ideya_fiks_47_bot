@@ -20,13 +20,14 @@ HOME = "🏠 В меню"
 
 
 def keyboard(rows: list[list[dict]]) -> list[dict]:
-    """Клавиатура экрана. Если на нём есть «« назад», но нет пути в главное меню,
-    добавляет «🏠 В меню»: из глубины разделов — в меню одним нажатием.
-    Регистрацию не трогает: у незарегистрированного меню ещё нет."""
+    """Клавиатура экрана. Если на нём нет пути в главное меню, добавляет «🏠 В меню»:
+    с любого экрана — в меню одним нажатием, в том числе посреди проверки или выбора
+    (нажатие работает как отмена). Регистрацию не трогает: у незарегистрированного
+    меню ещё нет. Само главное меню строится без неё (menu_for)."""
     buttons = [b for row in rows for b in row]
     payloads = [b["payload"] for b in buttons]
-    has_back = any(b["text"].startswith("«") for b in buttons)
-    if has_back and "menu:main" not in payloads and not any(p.startswith("reg:") for p in payloads):
+    has_exit = "menu:main" in payloads or "cancel" in payloads  # «Отмена» тоже ведёт в меню
+    if not has_exit and not any(p.startswith("reg:") for p in payloads):
         home = callback_button(HOME, "menu:main")
         last = rows[-1] if rows else []
         if len(last) == 1 and last[0]["text"].startswith("«"):
@@ -161,8 +162,12 @@ def _short(text: str, limit: int = 40) -> str:
     return text if len(text) <= limit else text[: limit - 1] + "…"
 
 
-def menu_for(role: Role, moderator_review: bool = False) -> list[dict]:
-    items = MENUS[role]
+HELP_ITEM = ("ℹ️ Помощь", "menu:help")
+
+
+def menu_for(role: Role, moderator_review: bool = False, help_first: bool = False) -> list[dict]:
+    """help_first — пользователь ещё не открывал справку: она первой кнопкой, иначе — последней."""
+    items = [HELP_ITEM, *MENUS[role]] if help_first else [*MENUS[role], HELP_ITEM]
     if role == Role.moderator and moderator_review:
         items = [
             ("📋 На проверке", "menu:review") if text == "🔒 На проверке" else (text, payload)
@@ -170,7 +175,7 @@ def menu_for(role: Role, moderator_review: bool = False) -> list[dict]:
         ]
     buttons = [callback_button(text, payload) for text, payload in items]
     # У админа и модератора разделов много — в два столбца
-    return keyboard(_grid(buttons, 2 if role in (Role.admin, Role.moderator) else 1))
+    return _keyboard(_grid(buttons, 2 if role in (Role.admin, Role.moderator) else 1))
 
 
 def back_to_menu() -> list[dict]:
@@ -326,7 +331,8 @@ def review_amounts(submission_id: int, amounts: list[int]) -> list[dict]:
     """Квест с диапазоном награды: проверяющий выбирает сумму."""
     row = [callback_button(f"✅ {a}", f"rev:ok:{submission_id}:{a}") for a in amounts]
     return keyboard(
-        _grid(row, 3) + [[callback_button("❌ Отклонить", f"rev:no:{submission_id}")]]
+        _grid(row, 3)
+        + [[callback_button("❌ Отклонить", f"rev:no:{submission_id}")], [_TO_REVIEW_LIST]]
     )
 
 
@@ -336,9 +342,14 @@ def review_actions(submission_id: int) -> list[dict]:
             [
                 callback_button("✅ Подтвердить", f"rev:ok:{submission_id}"),
                 callback_button("❌ Отклонить", f"rev:no:{submission_id}"),
-            ]
+            ],
+            [_TO_REVIEW_LIST],
         ]
     )
+
+
+# Выйти из заявки, ничего не решив: заявка остаётся на проверке
+_TO_REVIEW_LIST = callback_button("« К списку проверок", "menu:review")
 
 
 def open_review(submission_id: int) -> list[dict]:
