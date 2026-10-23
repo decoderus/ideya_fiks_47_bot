@@ -1,0 +1,10 @@
+# Утренние напоминания о сериях: каждый день в 08:00 по времени сервера (Москва).
+# Без Persistent: если сервер был выключен утром, днём «утреннее» сообщение не шлём.
+[Unit]
+Description=Sferum Aktiv: daily streak reminders
+
+[Timer]
+OnCalendar=*-*-* 08:00:00
+
+[Install]
+WantedBy=timers.target

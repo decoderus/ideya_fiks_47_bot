@@ -1,0 +1,9 @@
+[Unit]
+Description=Sferum Aktiv: morning streak reminders
+
+[Service]
+Type=oneshot
+User=aktiv
+Group=aktiv
+WorkingDirectory=/opt/aktiv/app
+ExecStart=/opt/aktiv/app/.venv/bin/python -m app.reminders

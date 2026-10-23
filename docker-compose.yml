@@ -1,0 +1,16 @@
+# Запуск бота одной командой: docker compose up -d --build
+# Токен и id админов — в файле .env (образец: .env.example).
+services:
+  bot:
+    build: .
+    image: sferum-aktiv:1.0
+    container_name: sferum-aktiv
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - aktiv-data:/app/data
+    # Время дописать начатую рассылку после Ctrl+C (STOPSIGNAL в Dockerfile)
+    stop_grace_period: 30s
+
+volumes:
+  aktiv-data:

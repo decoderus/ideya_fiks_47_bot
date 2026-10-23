@@ -1,0 +1,9 @@
+[Unit]
+Description=Sferum Aktiv: class contest results
+
+[Service]
+Type=oneshot
+User=aktiv
+Group=aktiv
+WorkingDirectory=/opt/aktiv/app
+ExecStart=/opt/aktiv/app/.venv/bin/python -m app.contests

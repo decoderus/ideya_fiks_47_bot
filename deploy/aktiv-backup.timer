@@ -1,0 +1,10 @@
+# Резервная копия базы каждую ночь в 03:30 по времени сервера (Москва)
+[Unit]
+Description=Sferum Aktiv: daily database backup
+
+[Timer]
+OnCalendar=*-*-* 03:30:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

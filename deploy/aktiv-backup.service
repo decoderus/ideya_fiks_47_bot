@@ -1,0 +1,9 @@
+[Unit]
+Description=Sferum Aktiv: database backup
+
+[Service]
+Type=oneshot
+User=aktiv
+Group=aktiv
+WorkingDirectory=/opt/aktiv/app
+ExecStart=/opt/aktiv/app/.venv/bin/python deploy/backup.py

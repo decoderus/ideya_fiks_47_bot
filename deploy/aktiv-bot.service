@@ -1,0 +1,25 @@
+# Бот «Сферум. Актив»: запускается вместе с сервером и перезапускается при сбоях.
+# Установка: deploy/setup.sh
+[Unit]
+Description=Sferum Aktiv bot (MAX)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=aktiv
+Group=aktiv
+WorkingDirectory=/opt/aktiv/app
+ExecStart=/opt/aktiv/app/.venv/bin/python -m app.main
+Environment=PYTHONUNBUFFERED=1
+Restart=always
+RestartSec=5
+# Ctrl+C для бота: даёт дописать начатые рассылки
+KillSignal=SIGINT
+TimeoutStopSec=30
+
+NoNewPrivileges=true
+ProtectSystem=full
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

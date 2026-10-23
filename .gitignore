@@ -1,0 +1,17 @@
+.env
+.venv/
+__pycache__/
+*.pyc
+*.db
+.pytest_cache/
+*.db-journal
+*.db-wal
+*.db-shm
+backups/
+.vscode/
+logs/
+media/music.wav
+media/narration.wav
+
+# Обезличенная демо-база для жюри (deploy/anonymize.py) — без персональных данных
+!demo/aktiv-demo.db

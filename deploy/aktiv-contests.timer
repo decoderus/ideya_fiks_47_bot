@@ -1,0 +1,13 @@
+# Итоги соревнования классов: каждое утро в 08:00 скрипт проверяет,
+# понедельник ли сегодня (итоги недели) и 1-е ли число (итоги месяца).
+# Persistent: если сервер был выключен, итоги подведутся при включении
+# (повторно за тот же период — нет).
+[Unit]
+Description=Sferum Aktiv: class contest results (Mondays and 1st of month)
+
+[Timer]
+OnCalendar=*-*-* 08:00:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target
