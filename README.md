@@ -20,7 +20,15 @@ docker load -i sferum-aktiv.tar.gz
 docker run -d --name sferum-aktiv -v aktiv-data:/app/data sferum-aktiv:jury
 ```
 
-Если собираете из этого репозитория (токена в нём нет — передайте свой):
+Готовый образ на Docker Hub — [kotzzz/sferum-aktiv](https://hub.docker.com/r/kotzzz/sferum-aktiv)
+(токена в нём нет — передайте свой):
+
+```bash
+docker pull kotzzz/sferum-aktiv:1.0
+docker run -d --name sferum-aktiv -e BOT_TOKEN=<токен бота MAX> -v aktiv-data:/app/data kotzzz/sferum-aktiv:1.0
+```
+
+Или соберите образ сами из этого репозитория:
 
 ```bash
 docker build -t sferum-aktiv:1.0 .
@@ -100,6 +108,9 @@ cp .env.example .env        # Windows: copy .env.example .env
 ```bash
 docker build -t sferum-aktiv:1.0 .
 ```
+
+Вместо сборки можно скачать готовый образ: `docker pull kotzzz/sferum-aktiv:1.0`
+(тогда в командах ниже используйте имя `kotzzz/sferum-aktiv:1.0`).
 
 ### 3. Запуск контейнера
 
