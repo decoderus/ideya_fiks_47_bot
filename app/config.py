@@ -14,6 +14,10 @@ class Settings(BaseSettings):
     ca_bundle: str = ""
     # Журнал действий модераторов и админов (файл, ротация по размеру)
     audit_log: str = "logs/audit.log"
+    # Признак жизни для HEALTHCHECK и распознавания сбоев (app/health.py)
+    heartbeat_file: str = "logs/heartbeat.json"
+    # Кому писать о сбоях: MAX user_id через запятую. Пусто — всем админам из базы
+    alert_ids: str = ""
     # Плановые задачи внутри бота (Docker). На сервере их запускают таймеры systemd.
     scheduler: bool = False
     # Демо-режим для жюри (app/demo.py) и база, которая копируется при первом запуске
@@ -28,6 +32,10 @@ class Settings(BaseSettings):
     @property
     def admin_id_set(self) -> set[int]:
         return {int(x) for x in self.admin_ids.split(",") if x.strip()}
+
+    @property
+    def alert_id_set(self) -> set[int]:
+        return {int(x) for x in self.alert_ids.split(",") if x.strip()}
 
 
 @lru_cache

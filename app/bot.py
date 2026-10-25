@@ -11,7 +11,7 @@ import httpx
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from app import help_texts
+from app import health, help_texts
 from app import keyboards as kb
 from app.db.models import (
     OrderStatus,
@@ -160,6 +160,9 @@ class Bot(
         # Проверка ответов модераторами (настройка в базе), обновляется на каждое событие
         self.moderator_review = False
         self._tasks: set[asyncio.Task] = set()
+        # Сбои и ошибки — оповещения админам (app/health.py); получатели — ALERT_IDS или все админы
+        self.watchdog = health.Watchdog()
+        self.alert_ids: set[int] = set()
 
     async def _run_later(self, coro: Coroutine) -> None:
         if not self.background:
@@ -188,8 +191,28 @@ class Bot(
                 await self._on_bot_added(update)
             elif kind not in ("bot_stopped", "message_edited", "message_removed"):
                 log.info("Необработанное событие %s, поля: %s", kind, sorted(update))
-        except Exception:
+        except Exception as exc:
             log.exception("Ошибка при обработке события %s", kind)
+            notice = self.watchdog.error(f"Событие «{kind}»: {type(exc).__name__}: {str(exc)[:200]}")
+            if notice:
+                await self.alert_admins(notice)
+
+    async def alert_admins(self, text: str) -> None:
+        """Служебное оповещение о сбое в личные сообщения: ALERT_IDS или все админы из базы.
+        Само никогда не падает: оповещение о сбое не должно создавать новый сбой."""
+        try:
+            if self.alert_ids:
+                ids = sorted(self.alert_ids)
+            else:
+                async with self.sessions() as session:
+                    ids = [u.max_user_id for u in await users_service.admins(session)]
+            for user_id in ids:
+                try:
+                    await self._send(user_id, text, kb.back_to_menu())
+                except httpx.HTTPError:
+                    log.warning("Не удалось отправить оповещение о сбое %s", user_id)
+        except Exception:
+            log.exception("Не удалось разослать оповещение о сбое")
 
     async def _send(
         self, user_id: int, text: str, attachments: list[dict] | None = None

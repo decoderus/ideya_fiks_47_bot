@@ -5,6 +5,7 @@ import logging
 import httpx
 
 from app import demo, scheduler
+from app import health
 from app.bot import Bot
 from app.config import get_settings
 from app.db.migrate import migrate
@@ -21,8 +22,16 @@ async def run() -> None:
     client = MaxClient(settings.bot_token, settings.max_api_base, settings.ca_bundle)
     bot = Bot(client, make_session_factory(engine), settings.admin_id_set, demo=settings.demo)
 
+    heartbeat = health.Heartbeat(settings.heartbeat_file)
+    previous = heartbeat.read()  # как закончился прошлый запуск
     me = await client.get_me()
     log.info("Бот запущен: @%s (id %s)", me.get("username"), me.get("user_id"))
+    heartbeat.beat()
+    bot.alert_ids = settings.alert_id_set
+    notice = health.restart_notice(previous)
+    if notice:
+        log.warning("Прошлый запуск закончился сбоем, оповещаем админов")
+        await bot.alert_admins(notice)
 
     # Ссылку держим, чтобы задачу не собрал сборщик мусора
     jobs = asyncio.create_task(scheduler.run()) if settings.scheduler else None
@@ -36,8 +45,13 @@ async def run() -> None:
                 data = await client.get_updates(marker)
             except (httpx.HTTPError, RuntimeError) as exc:
                 log.warning("Ошибка опроса: %s. Повтор через 5 с", exc)
+                bot.watchdog.poll_failed()
                 await asyncio.sleep(5)
                 continue
+            heartbeat.beat()
+            notice = bot.watchdog.poll_ok()
+            if notice:
+                await bot.alert_admins(notice)
             marker = data.get("marker", marker)
             for update in data.get("updates", []):
                 await bot.handle_update(update)
@@ -47,6 +61,7 @@ async def run() -> None:
         await bot.wait_background()
         await client.close()
         await engine.dispose()
+        heartbeat.stopped()  # штатная остановка — при следующем запуске не «сбой»
 
 
 def main() -> None:
