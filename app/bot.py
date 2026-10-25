@@ -51,6 +51,7 @@ from app.services import publication as pub_service
 from app.services import questions as questions_service
 from app.services import quiz as quiz_service
 from app.services import rating as rating_service
+from app.services import school_stats
 from app.services import settings as settings_service
 from app.services import seasons as seasons_service
 from app.services import shop as shop_service
@@ -160,6 +161,8 @@ class Bot(
         # Проверка ответов модераторами (настройка в базе), обновляется на каждое событие
         self.moderator_review = False
         self._tasks: set[asyncio.Task] = set()
+        # Счётчики на кнопках меню (обновляются на каждое событие пользователя)
+        self.menu_counts: dict[str, int] = {}
         # Сбои и ошибки — оповещения админам (app/health.py); получатели — ALERT_IDS или все админы
         self.watchdog = health.Watchdog()
         self.alert_ids: set[int] = set()
@@ -273,6 +276,7 @@ class Bot(
                 session, user_id, name, self.admin_ids
             )
             self.moderator_review = await settings_service.moderator_review(session)
+            await self._refresh_menu_counts(session, user)
             if self.demo and user.full_name is None:
                 screen = await self._demo_welcome(session, user)
             elif self.demo and text.startswith("/demo"):
@@ -300,6 +304,7 @@ class Bot(
                 session, user_id, _max_name(user), self.admin_ids
             )
             self.moderator_review = await settings_service.moderator_review(session)
+            await self._refresh_menu_counts(session, me)
             if self.demo and payload.startswith("demo:"):
                 result = await self._demo_callback(session, me, payload)
             elif self.demo and me.full_name is None:
@@ -395,6 +400,8 @@ class Bot(
 
         if payload == "menu:main":
             return self._menu(user)
+        if payload == "menu:school":
+            return self._school_menu(user)
         if payload == "menu:help":
             return await self._help(session, user)
         if payload == "cancel":
@@ -560,8 +567,26 @@ class Bot(
             lines.append("🧪 Демо-версия: /demo — сменить роль")
         lines.append("Выберите раздел:")
         return "\n".join(lines), kb.menu_for(
-            user.role, self.moderator_review, help_first=not user.help_seen
+            user.role, self.moderator_review, help_first=not user.help_seen, counts=self.menu_counts
         )
+
+    async def _refresh_menu_counts(self, session: AsyncSession, user: User) -> None:
+        """Счётчики на кнопках меню: что ждёт действия в разделе."""
+        self.menu_counts = {}
+        if user.full_name is None:
+            return
+        if user.role in (Role.admin, Role.moderator):
+            self.menu_counts = {
+                "menu:rewards": len(await shop_service.pending_for(session, user)),
+                "menu:stats": await school_stats.unchecked_count(session),
+            }
+        elif user.role == Role.teacher:
+            self.menu_counts = {"ord:list": len(await shop_service.pending_for(session, user))}
+
+    def _school_menu(self, user: User) -> Screen | str:
+        if user.role not in (Role.admin, Role.moderator):
+            return "Раздел доступен админам и модераторам."
+        return "🏫 Школа\nКлассы и ученики, учителя и их заявки.", kb.school_menu()
 
     async def _help(self, session: AsyncSession, user: User) -> Screen:
         """«ℹ️ Помощь» и /help: справка по меню своей роли."""
@@ -1603,7 +1628,9 @@ class Bot(
             text += "\nНаград пока нет. Добавьте первую."
         if page:
             text += f"\nСтраница {page + 1}"
-        return text, kb.reward_admin_list(items, page, has_more, readonly)
+        return text, kb.reward_admin_list(
+            items, page, has_more, readonly, pending=self.menu_counts.get("menu:rewards", 0)
+        )
 
     async def _reward_card(
         self, session: AsyncSession, reward, note: str = "", readonly: bool = False
@@ -1904,9 +1931,10 @@ class Bot(
             return "Раздел доступен учителям, модераторам и админам."
         if payload == "ord:list":
             items = await shop_service.pending_for(session, user)
+            staff = user.role in (Role.admin, Role.moderator)
             if not items:
-                return "📦 Наград на выдачу нет.", kb.back_to_menu()
-            return f"📦 Ждут выдачи: {len(items)}. Выберите заказ:", kb.orders_list(items)
+                return "📦 Наград на выдачу нет.", kb.no_orders(staff)
+            return f"📦 Ждут выдачи: {len(items)}. Выберите заказ:", kb.orders_list(items, staff)
         order_id = _parse_id(payload) or 0
         try:
             if payload.startswith("ord:open:"):

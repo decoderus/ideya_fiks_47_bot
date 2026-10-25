@@ -82,7 +82,7 @@ class SchoolAdminMixin:
                 classes = await classes_service.all_classes(session)
                 return (
                     f"🏫 Классы: {len(classes)}\nВыберите класс:",
-                    kb.classes_overview(classes, admin=False, show_locked=True),
+                    kb.classes_overview(classes, admin=False, show_locked=True, staff=True),
                 )
             if payload.startswith("cls:open:"):
                 return await self._class_card(
@@ -112,7 +112,7 @@ class SchoolAdminMixin:
                     return "Вам ещё не назначены классы. Обратитесь к администратору."
                 return (
                     f"🏫 Мои классы: {len(classes)}\nВыберите класс:",
-                    kb.classes_overview(classes, admin=False),
+                    kb.classes_overview(classes, admin=False, staff=False),
                 )
             if payload.startswith(("cls:open:", "cls:st:")):
                 ids = parse_ids(payload, 2) if payload.startswith("cls:st:") else None
@@ -543,7 +543,9 @@ class SchoolAdminMixin:
         without = [c.name for c, _ in data["classes"] if c.id not in covered]
         if without:
             lines.append("Классы без учителя: " + ", ".join(without))
-        return "\n".join(lines), kb.stats(admin=user.role == Role.admin)
+        return "\n".join(lines), kb.stats(
+            admin=user.role == Role.admin, unchecked=await school_stats.unchecked_count(session)
+        )
 
     # --- журналы (только админ) ---
 

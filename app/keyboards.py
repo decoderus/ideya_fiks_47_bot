@@ -57,8 +57,7 @@ MENUS: dict[Role, list[tuple[str, str]]] = {
         ("🔄 Перезапустить", "menu:restart"),
     ],
     Role.teacher: [
-        ("➕ Новый квест", "menu:new_quest"),
-        ("📂 Мои квесты", "mq:list:a:0"),
+        ("📂 Квесты", "mq:list:a:0"),
         ("📋 На проверке", "menu:review"),
         ("❓ Вопросы", "menu:questions"),
         ("📦 Выдача", "ord:list"),
@@ -68,19 +67,16 @@ MENUS: dict[Role, list[tuple[str, str]]] = {
         ("🏫 Мои классы", "menu:classes"),
         ("🔄 Перезапустить", "menu:restart"),
     ],
+    # Выдача — в «Наградах», регистрации — в «Статистике», классы и учителя — в «Школе»
     Role.admin: [
-        ("➕ Новый квест", "menu:new_quest"),
-        ("📂 Все квесты", "mq:list:a:0"),
+        ("📂 Квесты", "mq:list:a:0"),
         ("📋 На проверке", "menu:review"),
         ("❓ Вопросы", "menu:questions"),
-        ("📦 Выдача", "ord:list"),
         ("💰 Монеты", "menu:coins"),
         ("🏆 Рейтинг", "menu:rating"),
         ("🎁 Награды", "menu:rewards"),
         ("📣 Оповещения", "menu:broadcast"),
-        ("🏫 Классы", "menu:classes"),
-        ("👩‍🏫 Учителя", "menu:teachers"),
-        ("🆕 Регистрации", "enl:0"),
+        ("🏫 Школа", "menu:school"),
         ("📊 Статистика", "menu:stats"),
         ("📒 Журнал успехов", "menu:journal"),
         ("🏅 Достижения", "menu:achievements"),
@@ -90,18 +86,14 @@ MENUS: dict[Role, list[tuple[str, str]]] = {
     # Как у админа; недоступное — с замком. Награды — только просмотр,
     # оповещения — на подтверждение админу
     Role.moderator: [
-        ("➕ Новый квест", "menu:new_quest"),
-        ("📂 Все квесты", "mq:list:a:0"),
+        ("📂 Квесты", "mq:list:a:0"),
         ("🔒 На проверке", LOCKED),
         ("❓ Вопросы", "menu:questions"),
-        ("📦 Выдача", "ord:list"),
         ("🔒 Монеты", LOCKED),
         ("🏆 Рейтинг", "menu:rating"),
         ("🎁 Награды", "menu:rewards"),
         ("📣 Оповещения", "menu:broadcast"),
-        ("🏫 Классы", "menu:classes"),
-        ("👩‍🏫 Учителя", "menu:teachers"),
-        ("🆕 Регистрации", "enl:0"),
+        ("🏫 Школа", "menu:school"),
         ("📊 Статистика", "menu:stats"),
         ("📒 Журнал успехов", "menu:journal"),
         ("🏅 Достижения", "menu:achievements"),
@@ -165,9 +157,22 @@ def _short(text: str, limit: int = 40) -> str:
 HELP_ITEM = ("ℹ️ Помощь", "menu:help")
 
 
-def menu_for(role: Role, moderator_review: bool = False, help_first: bool = False) -> list[dict]:
-    """help_first — пользователь ещё не открывал справку: она первой кнопкой, иначе — последней."""
+def with_count(text: str, count: int) -> str:
+    """«🎁 Награды · 3» — раздел, где что-то ждёт действия."""
+    return f"{text} · {count}" if count else text
+
+
+def menu_for(
+    role: Role,
+    moderator_review: bool = False,
+    help_first: bool = False,
+    counts: dict[str, int] | None = None,
+) -> list[dict]:
+    """help_first — пользователь ещё не открывал справку: она первой кнопкой, иначе — последней.
+    counts — сколько ждёт действия в разделе (payload раздела -> число), показывается на кнопке."""
     items = [HELP_ITEM, *MENUS[role]] if help_first else [*MENUS[role], HELP_ITEM]
+    counts = counts or {}
+    items = [(with_count(text, counts.get(payload, 0)), payload) for text, payload in items]
     if role == Role.moderator and moderator_review:
         items = [
             ("📋 На проверке", "menu:review") if text == "🔒 На проверке" else (text, payload)
@@ -481,7 +486,8 @@ def managed_list(
         mark = APPROVAL_MARKS.get(q.approval, "") + mark
         return f"{mark}{_short(q.title)} · {reward_short(q)}"
 
-    rows = [[callback_button(label(q), f"mq:open:{q.id}")] for q in items]
+    rows = [[callback_button("➕ Новый квест", "menu:new_quest")]]
+    rows += [[callback_button(label(q), f"mq:open:{q.id}")] for q in items]
     nav = []
     if page > 0:
         nav.append(callback_button("« Новее", f"mq:list:{flag}:{page - 1}"))
@@ -648,9 +654,11 @@ def _pages(prefix: str, page: int, has_more: bool) -> list[list[dict]]:
 
 
 def reward_admin_list(
-    items: list[Reward], page: int, has_more: bool, readonly: bool = False
+    items: list[Reward], page: int, has_more: bool, readonly: bool = False, pending: int = 0
 ) -> list[dict]:
-    rows = [[locked("Новая награда")]] if readonly else [[callback_button("➕ Новая награда", "rw:new")]]
+    """pending — заказов ждут выдачи (выдавать может и модератор)."""
+    rows = [[callback_button(with_count("📦 Выдача", pending), "ord:list")]]
+    rows += [[locked("Новая награда")]] if readonly else [[callback_button("➕ Новая награда", "rw:new")]]
     for r in items:
         mark = "" if r.is_active else "🙈 "
         rows.append([callback_button(f"{mark}{_short(r.title)} · {r.price}", f"rw:open:{r.id}")])
@@ -765,13 +773,22 @@ def my_orders_nav(page: int, has_more: bool) -> list[dict]:
     return keyboard(rows)
 
 
-def orders_list(items: list[Order]) -> list[dict]:
+def orders_list(items: list[Order], staff: bool = False) -> list[dict]:
+    """staff — админ или модератор: выдача у них внутри «Наград»."""
     rows = []
     for o in items[:LIST_LIMIT]:
         text = f"{_short(o.user.display_name, 24)} · {_short(o.reward.title, 24)}"
         rows.append([callback_button(text, f"ord:open:{o.id}")])
-    rows.append([callback_button("« В меню", "menu:main")])
+    rows.append([_back_to_rewards() if staff else callback_button("« В меню", "menu:main")])
     return keyboard(rows)
+
+
+def _back_to_rewards() -> dict:
+    return callback_button("« К наградам", "menu:rewards")
+
+
+def no_orders(staff: bool = False) -> list[dict]:
+    return keyboard([[_back_to_rewards()]]) if staff else back_to_menu()
 
 
 def order_actions(order_id: int, can_cancel: bool = True) -> list[dict]:
@@ -1006,15 +1023,31 @@ def enrollment_delete_confirm(student_id: int, class_id: int) -> list[dict]:
 CLASS_STUDENTS_PAGE = 10
 
 
+def school_menu() -> list[dict]:
+    """«🏫 Школа»: классы и учителя (админ и модератор)."""
+    return keyboard(
+        [
+            [callback_button("🏫 Классы", "menu:classes")],
+            [callback_button("👩‍🏫 Учителя", "menu:teachers")],
+            [callback_button("« В меню", "menu:main")],
+        ]
+    )
+
+
+def _back_to_school() -> dict:
+    return callback_button("« Школа", "menu:school")
+
+
 def classes_overview(
-    classes: list[SchoolClass], admin: bool = True, show_locked: bool = False
+    classes: list[SchoolClass], admin: bool = True, show_locked: bool = False, staff: bool = True
 ) -> list[dict]:
+    """staff — админ или модератор: назад в «Школу»; учитель — в меню."""
     if admin:
         rows = [[callback_button("➕ Добавить классы", "cls:add")]]
     else:
         rows = [[locked("Добавить классы")]] if show_locked else []
     rows += _grid([callback_button(c.name, f"cls:open:{c.id}") for c in classes])
-    rows.append([callback_button("« В меню", "menu:main")])
+    rows.append([_back_to_school() if staff else callback_button("« В меню", "menu:main")])
     return keyboard(rows)
 
 
@@ -1140,7 +1173,7 @@ def teachers_overview(requests: list, teachers: list) -> list[dict]:
     for t in teachers:
         names = ", ".join(c.name for c in t.teacher_classes) or "без классов"
         rows.append([callback_button(f"{_short(t.display_name, 24)} · {_short(names, 20)}", f"tc:open:{t.id}")])
-    rows.append([callback_button("« В меню", "menu:main")])
+    rows.append([_back_to_school()])
     return keyboard(rows)
 
 
@@ -1230,7 +1263,7 @@ def enrollment_list(items: list, page: int, has_more: bool, any_unchecked: bool,
         nav.append(callback_button("Старше »", f"enl:{page + 1}"))
     if nav:
         rows.append(nav)
-    rows.append([callback_button("« В меню", "menu:main")])
+    rows.append([callback_button("📊 К статистике", "menu:stats")])
     return keyboard(rows)
 
 
@@ -1238,7 +1271,9 @@ def to_enrollments() -> list[dict]:
     return keyboard([[callback_button("🆕 К регистрациям", "enl:0")]])
 
 
-def stats(admin: bool = True) -> list[dict]:
+def stats(admin: bool = True, unchecked: int = 0) -> list[dict]:
+    """unchecked — регистраций учеников, которые ещё не проверены."""
+    registrations = [callback_button(with_count("🆕 Регистрации", unchecked), "enl:0")]
     if admin:
         logs = [
             callback_button("💰 Движение монет", "log:coins:0"),
@@ -1248,6 +1283,7 @@ def stats(admin: bool = True) -> list[dict]:
         logs = [locked("Движение монет"), locked("Действия персонала")]
     return keyboard(
         [
+            registrations,
             logs,
             [callback_button("🔄 Обновить", "menu:stats")],
             [callback_button("« В меню", "menu:main")],

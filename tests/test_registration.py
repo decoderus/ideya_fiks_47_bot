@@ -487,4 +487,4 @@ async def test_admin_menu_in_two_columns(env):
     rows = client.sent[-1][2][0]["payload"]["buttons"]
     assert [len(r) for r in rows[:-1]] == [2] * (len(rows) - 1)
     labels = [b["text"] for r in rows for b in r]
-    assert "🆕 Регистрации" in labels and "📊 Статистика" in labels
+    assert "🏫 Школа" in labels and "📊 Статистика" in labels

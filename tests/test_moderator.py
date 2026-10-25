@@ -75,7 +75,7 @@ async def test_becomes_moderator(env, journal):
     text, att = last_to(client, MOD)
     buttons_ = [b for row in att[0]["payload"]["buttons"] for b in row]
     menu = [b["payload"] for b in buttons_]
-    for allowed in ("menu:new_quest", "ord:list", "menu:broadcast", "menu:teachers",
+    for allowed in ("mq:list:a:0", "menu:broadcast", "menu:school",
                     "menu:stats", "menu:rewards"):
         assert allowed in menu
     # меню как у админа, недоступное — с замком

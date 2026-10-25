@@ -35,7 +35,7 @@ async def test_new_user_enters_as_admin(env):
     assert "Привет, Мария Петрова!" in text  # имя и фамилия из профиля MAX
     assert "Демо-версия" in text and "копия бота @demo_active_bot" in text
     assert "Ваша роль: админ" in text and text.count("/demo") == 1  # подсказка — один раз, в меню
-    assert "menu:classes" in payloads_of(att)  # сразу меню админа, без регистрации
+    assert "menu:school" in payloads_of(att)  # сразу меню админа, без регистрации
     user = await get_user(sessions, JURY)
     assert (user.role, user.full_name) == (Role.admin, "Мария Петрова")
 
