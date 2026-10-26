@@ -23,17 +23,6 @@ class Settings(BaseSettings):
     # Демо-режим для жюри (app/demo.py) и база, которая копируется при первом запуске
     demo: bool = False
     demo_db: str = ""
-    # Копии базы вне сервера (deploy/offsite.py). Яндекс Диск: OAuth-токен с доступом к папке
-    # приложения (OFFSITE_TOKEN, работает на бесплатном тарифе) или облако по WebDAV
-    # (OFFSITE_URL + OFFSITE_USER + OFFSITE_PASSWORD). Ничего не задано — выгрузка выключена.
-    # Копии шифруются ключом BACKUP_PASSPHRASE.
-    offsite_token: str = ""
-    offsite_url: str = "https://webdav.yandex.ru"
-    offsite_user: str = ""
-    offsite_password: str = ""  # пароль приложения, не основной пароль аккаунта
-    offsite_dir: str = "aktiv-backups"
-    offsite_keep_days: int = 30
-    backup_passphrase: str = ""
 
     @field_validator("admin_ids")
     @classmethod
