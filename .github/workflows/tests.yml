@@ -1,0 +1,37 @@
+# Автоматическая проверка на серверах GitHub при каждом обновлении кода:
+# тесты на чистой машине и сборка Docker-образа с прогоном тестов внутри него.
+name: tests
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  tests:
+    name: Тесты (Python 3.13)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+      - name: Установка зависимостей из requirements.txt
+        run: pip install -r requirements.txt
+      - name: Тесты
+        run: python -m pytest -q
+
+  docker:
+    name: Сборка Docker-образа
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Сборка образа
+        run: docker build -t sferum-aktiv:ci .
+      - name: Тесты внутри контейнера
+        run: docker run --rm sferum-aktiv:ci python -m pytest -q -p no:cacheprovider
+      - name: Размер образа
+        run: docker image ls sferum-aktiv:ci
