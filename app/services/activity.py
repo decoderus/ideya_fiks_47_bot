@@ -56,6 +56,8 @@ ACTIONS = {
     "settings.moderator_review": "проверка ответов модераторами",
     "reward.price": "изменил(а) цены наград",
     "question.answer": "ответил(а) на вопрос ученика",
+    "success.add": "отметил(а) успех ученика",
+    "success.delete": "удалил(а) запись об успехе",
 }
 
 

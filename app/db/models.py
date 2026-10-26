@@ -512,3 +512,22 @@ class QuestAnswer(Base):
 
     question: Mapped[QuestQuestion] = relationship(back_populates="answers")
     author: Mapped[User] = relationship(lazy="joined")
+
+
+class Success(Base):
+    """Запись об успехе ученика в «Журнале успехов»: делает учитель или админ.
+    Роль автора сохраняется на момент записи; coins — сколько монет начислено вместе с ней."""
+
+    __tablename__ = "successes"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    student_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    author_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    author_role: Mapped[Role] = mapped_column(Enum(Role))
+    category: Mapped[str] = mapped_column(String(16))
+    text: Mapped[str] = mapped_column(Text)
+    coins: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+    student: Mapped[User] = relationship(foreign_keys=[student_id], lazy="joined")
+    author: Mapped[User] = relationship(foreign_keys=[author_id], lazy="joined")

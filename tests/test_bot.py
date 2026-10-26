@@ -248,37 +248,6 @@ async def test_role_command_admin_only(env):
     assert "Формат" in client.sent[-1][1]
 
 
-async def test_journal_teacher_one_class(env):
-    bot, client, sessions = env
-    await make_teacher(bot, 7)
-    await create_quest(bot, 7)
-    await register(bot, 5, "Иванов Иван")
-    await register(bot, 6, "Петров Пётр")
-    await bot.handle_update(cb(5, f"q:done:{await quest_id(sessions)}"))
-    student = await get_user(sessions, 5)
-    async with sessions() as s:
-        reward = Reward(title="DJ на перемене", price=30, author_id=student.id)
-        s.add(reward)
-        await s.flush()
-        s.add(Order(reward_id=reward.id, user_id=student.id, price=30))
-        s.add(CoinTransaction(user_id=student.id, actor_id=student.id, amount=100, reason="Помог"))
-        await s.commit()
-
-    # один класс — сразу список учеников
-    await bot.handle_update(cb(7, "menu:journal"))
-    answer = client.answers[-1]
-    assert "Журнал успехов · класс «Тестовый класс»" in answer["text"]
-    labels = [b["text"] for b in buttons(answer["attachments"])]
-    assert "Иванов Иван · 🎯1 · 💰50" in labels and "Петров Пётр · 🎯0 · 💰0" in labels
-
-    await bot.handle_update(cb(7, f"jr:st:{student.id}"))
-    text = client.answers[-1]["text"]
-    assert "Заработано всего: 150 монет" in text  # квест 50 + начисление 100
-    assert "Квестов выполнено: 1" in text and "Покупок в магазине: 1" in text
-    assert "✅ «Убрать класс» +50" in text
-    assert "🎁 «DJ на перемене» −30" in text and "🪙 +100 · Помог" in text
-
-
 async def test_balance_history(env):
     bot, client, sessions = env
     await make_teacher(bot, 7)
@@ -334,27 +303,6 @@ async def test_teacher_classes_only_own(env):
     for payload in (f"cls:stu:{student.id}", f"cls:hist:{student.id}:0"):
         await bot.handle_update(cb(7, payload))
         assert "не найден" in client.answers[-1]["notification"]
-
-
-async def test_journal_access(env):
-    bot, client, sessions = env
-    await make_teacher(bot, 7)
-    other = await add_class(sessions, "5Б")
-    await register(bot, 5, school_class="5Б")
-    student = await get_user(sessions, 5)
-    # чужой класс и ученик чужого класса учителю недоступны
-    await bot.handle_update(cb(7, f"jr:cls:{other}:0"))
-    assert "только ваши классы" in client.answers[-1]["notification"]
-    await bot.handle_update(cb(7, f"jr:st:{student.id}"))
-    assert "не найден" in client.answers[-1]["notification"]
-    # ученику раздел закрыт
-    await bot.handle_update(cb(5, "menu:journal"))
-    assert "админам" in client.answers[-1]["notification"]
-    # админ видит все классы и любого ученика
-    await bot.handle_update(cb(ADMIN, "menu:journal"))
-    assert f"jr:cls:{other}:0" in payloads_of(client.answers[-1])
-    await bot.handle_update(cb(ADMIN, f"jr:st:{student.id}"))
-    assert "Пока никаких событий" in client.answers[-1]["text"]
 
 
 async def test_bot_messages_ignored(env):

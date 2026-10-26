@@ -34,7 +34,7 @@ from app.channel import ST_PUB_FIX, ST_PUB_NOTE, ChannelMixin
 from app import demo as demo_service
 from app.contests import ContestsMixin
 from app.demo_view import DemoMixin
-from app.journal import JournalMixin
+from app.journal import JOURNAL_STATES, JournalMixin
 from app.seasons_view import SEASON_STATES, SeasonsMixin
 from app.quest_edit import QUEST_EDIT_STATES, QuestEditMixin
 from app.questions_view import QUESTION_STATES, QuestionsMixin
@@ -386,6 +386,8 @@ class Bot(
             return await self._quest_edit_step(session, user, text, attachments)
         if user.state in QUESTION_STATES:
             return await self._question_step(session, user, text)
+        if user.state in JOURNAL_STATES:
+            return await self._journal_step(session, user, text)
         return self._menu(user)
 
     async def _route_callback(
@@ -394,7 +396,8 @@ class Bot(
         """Экран, которым заменить сообщение, или текст всплывающего уведомления."""
         # Любая кнопка, кроме шагов создания квеста и оповещения, прерывает начатый диалог
         if user.state and not payload.startswith(
-            ("nq:", "bc:aud:", "bc:send", "rw:stock:", "rw:photo:", "coins:ok", "ach:emoji:", "rev:nr:", "rev:nw:")
+            ("nq:", "bc:aud:", "bc:send", "rw:stock:", "rw:photo:", "coins:ok", "ach:emoji:", "rev:nr:", "rev:nw:",
+             "jr:cat:", "jr:coins:")
         ):
             await users_service.set_state(session, user, None)
 

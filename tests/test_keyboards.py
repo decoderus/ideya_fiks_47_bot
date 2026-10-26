@@ -57,7 +57,7 @@ def test_class_lists_are_compact_grids():
 
     classes = [SimpleNamespace(id=i, name=f"{i // 2 + 1}{'АБ'[i % 2]}") for i in range(20)]
     for markup in (
-        kb.journal_classes(classes),
+        kb.journal_hub(classes, can_write=True),
         kb.coins_classes(classes),
         kb.broadcast_classes(classes, "bc:aud:class"),
         kb.quest_audience(classes, allow_all=False),
@@ -66,4 +66,4 @@ def test_class_lists_are_compact_grids():
         names = {c.name for c in classes}
         class_rows = [r for r in rows if all(text in names for text, _ in r)]
         assert len(class_rows) == 5 and all(len(r) == 4 for r in class_rows), rows
-        assert rows[0][0][0] == "1А"  # без значка, только название
+        assert class_rows[0][0][0] == "1А"  # без значка, только название

@@ -226,7 +226,7 @@ async def test_range_quest_reviewer_chooses_amount(env):
     # заработок считается по начисленной сумме, а не по максимуму квеста
     student = await get_user(sessions, 5)
     await bot.handle_update(cb(7, f"jr:st:{student.id}"))
-    assert "Заработано всего: 300 монет" in client.answers[-1]["text"]
+    assert "заработано: 300 монет" in client.answers[-1]["text"]
 
 
 async def test_range_override_and_edit(env):
@@ -249,7 +249,7 @@ async def test_range_override_and_edit(env):
     assert (quest.reward_min, quest.reward) == (None, 50)
     student = await get_user(sessions, 5)
     await bot.handle_update(cb(7, f"jr:st:{student.id}"))
-    assert "Заработано всего: 200 монет" in client.answers[-1]["text"]
+    assert "заработано: 200 монет" in client.answers[-1]["text"]
 
 
 async def test_range_rules(env, fixed_ranges):

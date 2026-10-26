@@ -152,6 +152,14 @@ async def test_anonymize(tmp_path):
         "VALUES (1, 1, 2, 'Это Настя Лаптева, можно сдать завтра?', '2026-10-19 10:00:00')"
     )
     db.execute(
+        "INSERT INTO successes (student_id, author_id, author_role, category, text, coins, created_at) "
+        "VALUES (2, 1, 'admin', 'study', 'Настя Лаптева — лучшая', 50, '2026-10-19 12:00:00')"
+    )
+    db.execute(
+        "INSERT INTO coin_transactions (user_id, actor_id, amount, reason, created_at) "
+        "VALUES (2, 1, 50, '🌟 Успех: Настя Лаптева — лучшая', '2026-10-19 12:00:00')"
+    )
+    db.execute(
         "INSERT INTO quest_answers (question_id, author_id, author_role, text, created_at) "
         "VALUES (1, 1, 'admin', 'Настя, да', '2026-10-19 11:00:00')"
     )
@@ -176,6 +184,8 @@ async def test_anonymize(tmp_path):
     assert pending.startswith("🧪 Пример ответа, придуман для демо-версии")
     assert out.execute("SELECT description FROM rewards").fetchone()[0] == anonymize.HIDDEN_TEXT
     assert out.execute("SELECT text FROM quest_questions").fetchone()[0] == anonymize.HIDDEN_QUESTION
+    assert out.execute("SELECT text, category FROM successes").fetchone() == (anonymize.HIDDEN_SUCCESS, "study")
+    assert out.execute("SELECT reason FROM coin_transactions").fetchone()[0].startswith("🌟 Успех (запись скрыта")
     assert out.execute("SELECT text, author_role FROM quest_answers").fetchone() == (
         anonymize.HIDDEN_REPLY, "admin"
     )
