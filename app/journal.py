@@ -1,5 +1,7 @@
 """Раздел «📒 Журнал успехов»: учителя и админ отмечают успехи любых учеников школы,
 записи копятся в карточке ученика. Модераторы смотрят, ученик видит свои в «🌟 Мои успехи»."""
+import logging
+
 import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -8,12 +10,15 @@ from app.db.models import Role, SchoolClass, Success, User
 from app.keyboards import ROLE_TITLES, coins
 from app.services import audit
 from app.services import classes as classes_service
+from app.services import export as export_service
 from app.services import journal as journal_service
 from app.services import pulse as pulse_service
 from app.services import successes as successes_service
 from app.services import users as users_service
 from app.services.successes import SuccessError
 from app.ui import Screen, format_day, parse_id
+
+log = logging.getLogger("aktiv.journal")
 
 ST_JR_CAT = "jr_cat"
 ST_JR_TEXT = "jr_text"
@@ -57,6 +62,10 @@ class JournalMixin:
         ids = _ints(payload)
         if payload == "menu:journal":
             return await self._journal_hub(session, user)
+        if payload.startswith("jr:xls:") and ids:
+            return self._export_periods(user, ids[0])
+        if payload.startswith("jr:xp:") and len(ids) == 2:
+            return await self._export_send(session, user, ids[0], ids[1])
         if payload.startswith("jr:cls:") and ids:
             return await self._class_pulse(session, user, ids[0])
         if payload.startswith("jr:all:") and ids:
@@ -93,6 +102,44 @@ class JournalMixin:
             return await self._success_save(session, user, (user.state_data or {}), ids[0])
         return "Неизвестное действие."
 
+    # --- выгрузка в таблицу ---
+
+    def _export_periods(self, user: User, class_id: int) -> Screen | str:
+        if not export_service.can_export(user, class_id):
+            return "Выгружать можно свои классы; всю школу — администратор."
+        return (
+            "📥 Выгрузка в таблицу LibreOffice (.ods, откроется и в Excel)\n\n"
+            "Три листа: сводка по ученикам, успехи из журнала и движение монет "
+            "(квесты, начисления, покупки).\nЗа какой период?",
+            kb.export_periods(class_id),
+        )
+
+    async def _export_send(self, session: AsyncSession, user: User, class_id: int, days: int) -> Screen | str:
+        if not export_service.can_export(user, class_id):
+            return "Выгружать можно свои классы; всю школу — администратор."
+        if days not in export_service.PERIODS:
+            return "Выберите период кнопкой."
+        result = await export_service.build(session, class_id, days)
+        if result is None:
+            return "Класс не найден."
+        audit.record(user, "export.ods", result.filename)
+        caption = (
+            f"📥 {result.filename}\n"
+            f"Учеников: {result.students} · успехов: {result.successes} · движений монет: {result.movements}"
+        )
+        try:
+            payload = await self.client.upload_file(result.filename, result.data, export_service.ods.MIME)
+            await self._send(user.max_user_id, caption, [{"type": "file", "payload": payload}])
+        except (httpx.HTTPError, RuntimeError):
+            log.exception("Не удалось отправить выгрузку %s", result.filename)
+            return "Не получилось отправить файл — попробуйте ещё раз через минуту."
+        back = f"jr:cls:{class_id}:0" if class_id else "menu:journal"
+        return (
+            f"✅ Таблица отправлена сообщением ниже ({export_service.PERIODS[days]}).\n"
+            "Откройте файл в LibreOffice Calc, Excel или Google Таблицах.",
+            kb.export_done(back),
+        )
+
     # --- просмотр ---
 
     async def _journal_hub(self, session: AsyncSession, user: User) -> Screen:
@@ -108,7 +155,9 @@ class JournalMixin:
         ]
         if not classes:
             lines[-1] = "Классов пока нет."
-        return "\n".join(lines), kb.journal_hub(classes, successes_service.can_write(user))
+        return "\n".join(lines), kb.journal_hub(
+            classes, successes_service.can_write(user), export_service.can_export(user, 0)
+        )
 
     async def _class_pulse(self, session: AsyncSession, user: User, class_id: int) -> Screen | str:
         """Первый экран класса: как класс в целом и где учителю действовать."""
@@ -119,7 +168,7 @@ class JournalMixin:
         if not pulse.students:
             return (
                 f"📒 {name} · пульс класса\n\nВ классе пока нет учеников.",
-                kb.class_pulse(class_id, 0, 0, successes_service.can_write(user)),
+                kb.class_pulse(class_id, 0, 0, successes_service.can_write(user), export_service.can_export(user, class_id)),
             )
         trend = ""
         if pulse.active_before:
@@ -159,7 +208,8 @@ class JournalMixin:
             else "⚠️ Отклонённых и не пересданных ответов нет"
         )
         return "\n".join(lines), kb.class_pulse(
-            class_id, len(pulse.inactive), len(pulse.need_help), successes_service.can_write(user)
+            class_id, len(pulse.inactive), len(pulse.need_help), successes_service.can_write(user),
+            export_service.can_export(user, class_id),
         )
 
     async def _pulse_list(self, session: AsyncSession, class_id: int, inactive: bool) -> Screen | str:

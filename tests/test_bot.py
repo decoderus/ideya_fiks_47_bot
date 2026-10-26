@@ -33,6 +33,7 @@ class FakeClient:
         self.deleted = []
         self.fail_delete = set()
         self.chat_posts = []
+        self.files = []
 
     async def send_message(self, user_id, text, attachments=None):
         self.sent.append((user_id, text, attachments))
@@ -41,6 +42,10 @@ class FakeClient:
     async def send_to_chat(self, chat_id, text, attachments=None):
         self.chat_posts.append((chat_id, text, attachments))
         return {"message": {"body": {"mid": f"post.{len(self.chat_posts)}"}}}
+
+    async def upload_file(self, filename, data, mime):
+        self.files.append((filename, data, mime))
+        return {"token": f"file.{len(self.files)}"}
 
     async def get_chat(self, chat_id):
         return {"chat_id": chat_id, "title": "Школьные новости"}

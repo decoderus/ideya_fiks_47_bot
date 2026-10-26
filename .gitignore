@@ -15,3 +15,6 @@ media/narration.wav
 
 # Обезличенная демо-база для жюри (deploy/anonymize.py) — без персональных данных
 !demo/aktiv-demo.db
+
+# личные настройки Claude Code
+.claude/settings.local.json

@@ -119,6 +119,21 @@ class MaxClient:
             raise RuntimeError(f"MAX не вернул токен картинки: {r.text[:200]}")
         return {"token": token}
 
+    async def upload_file(self, filename: str, data: bytes, mime: str) -> dict:
+        """Загружает файл (документ) в MAX. Возвращает payload для вложения {"token": ...}."""
+        upload = await self._request("POST", "/uploads", params={"type": "file"})
+        r = await self._client.post(upload["url"], files={"data": (filename, data, mime)})
+        r.raise_for_status()
+        try:
+            uploaded = r.json()
+        except ValueError:
+            uploaded = None
+        # Токен файла приходит в ответе загрузки, у некоторых версий API — сразу в ответе /uploads
+        token = _find_token(uploaded) or _find_token(upload)
+        if not token:
+            raise RuntimeError(f"MAX не вернул токен файла: {r.text[:200]}")
+        return {"token": token}
+
     async def delete_message(self, mid: str) -> dict:
         return await self._request("DELETE", "/messages", params={"message_id": mid})
 

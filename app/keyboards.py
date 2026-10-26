@@ -829,10 +829,12 @@ JOURNAL_PAGE = 10
 SUCCESS_PAGE = 8
 
 
-def journal_hub(classes: list[SchoolClass], can_write: bool) -> list[dict]:
+def journal_hub(classes: list[SchoolClass], can_write: bool, can_export: bool = False) -> list[dict]:
     """«📒 Журнал успехов»: отметить успех, последние записи, классы."""
     rows = [[callback_button("✍️ Отметить успех", "jr:new")]] if can_write else []
     rows.append([callback_button("🕘 Последние записи", "jr:feed:0")])
+    if can_export:
+        rows.append([callback_button("📥 Вся школа в таблицу", "jr:xls:0")])
     rows += _class_grid(classes, "jr:cls:{id}:0")
     rows.append([callback_button("« В меню", "menu:main")])
     return keyboard(rows)
@@ -864,7 +866,9 @@ def _to_pulse(class_id: int) -> dict:
     return callback_button("« Пульс класса", f"jr:cls:{class_id}:0")
 
 
-def class_pulse(class_id: int, inactive: int, need_help: int, can_write: bool) -> list[dict]:
+def class_pulse(
+    class_id: int, inactive: int, need_help: int, can_write: bool, can_export: bool = False
+) -> list[dict]:
     """«Пульс класса»: списки, где учителю действовать, и все ученики."""
     lists = []
     if inactive:
@@ -875,6 +879,8 @@ def class_pulse(class_id: int, inactive: int, need_help: int, can_write: bool) -
     rows.append([callback_button("👥 Все ученики", f"jr:all:{class_id}:0")])
     if can_write:
         rows.append([callback_button("✍️ Отметить успех", f"jr:nc:{class_id}:0")])
+    if can_export:
+        rows.append([callback_button("📥 Выгрузить в таблицу", f"jr:xls:{class_id}")])
     rows.append([callback_button("« К классам", "menu:journal")])
     return keyboard(rows)
 
@@ -1401,6 +1407,7 @@ def stats(admin: bool = True, unchecked: int = 0) -> list[dict]:
             registrations,
             logs,
             *([[callback_button("📋 Опрос учеников и учителей", "sv:admin")]] if admin else []),
+            *([[callback_button("📥 Выгрузка в таблицу", "jr:xls:0")]] if admin else []),
             [callback_button("🔄 Обновить", "menu:stats")],
             [callback_button("« В меню", "menu:main")],
         ]
@@ -1814,3 +1821,20 @@ def survey_admin(opened: bool, waiting: int) -> list[dict]:
 
 def survey_back() -> list[dict]:
     return keyboard([[callback_button("« К опросу", "sv:admin")]])
+
+
+# --- выгрузка в таблицу ---
+
+
+def export_periods(class_id: int) -> list[dict]:
+    from app.services.export import PERIODS
+
+    back = f"jr:cls:{class_id}:0" if class_id else "menu:journal"
+    return keyboard([
+        [callback_button(title.capitalize(), f"jr:xp:{class_id}:{days}") for days, title in PERIODS.items()],
+        [callback_button("« Назад", back)],
+    ])
+
+
+def export_done(back: str) -> list[dict]:
+    return keyboard([[callback_button("« Назад", back)]])
