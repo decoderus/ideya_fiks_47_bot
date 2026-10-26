@@ -9,6 +9,7 @@ from app.keyboards import ROLE_TITLES, coins
 from app.services import audit
 from app.services import classes as classes_service
 from app.services import journal as journal_service
+from app.services import pulse as pulse_service
 from app.services import successes as successes_service
 from app.services import users as users_service
 from app.services.successes import SuccessError
@@ -57,7 +58,11 @@ class JournalMixin:
         if payload == "menu:journal":
             return await self._journal_hub(session, user)
         if payload.startswith("jr:cls:") and ids:
+            return await self._class_pulse(session, user, ids[0])
+        if payload.startswith("jr:all:") and ids:
             return await self._journal_students(session, ids[0], max(ids[1] if len(ids) > 1 else 0, 0))
+        if payload.startswith(("jr:idle:", "jr:help:")) and ids:
+            return await self._pulse_list(session, ids[0], payload.startswith("jr:idle:"))
         if payload.startswith("jr:st:") and ids:
             return await self._journal_card(session, user, ids[0], max(ids[1] if len(ids) > 1 else 0, 0))
         if payload.startswith("jr:feed:"):
@@ -104,6 +109,83 @@ class JournalMixin:
         if not classes:
             lines[-1] = "Классов пока нет."
         return "\n".join(lines), kb.journal_hub(classes, successes_service.can_write(user))
+
+    async def _class_pulse(self, session: AsyncSession, user: User, class_id: int) -> Screen | str:
+        """Первый экран класса: как класс в целом и где учителю действовать."""
+        pulse = await pulse_service.class_pulse(session, class_id)
+        if pulse is None:
+            return "Класс не найден."
+        name = pulse.school_class.name
+        if not pulse.students:
+            return (
+                f"📒 {name} · пульс класса\n\nВ классе пока нет учеников.",
+                kb.class_pulse(class_id, 0, 0, successes_service.can_write(user)),
+            )
+        trend = ""
+        if pulse.active_before:
+            diff = len(pulse.active) - pulse.active_before
+            arrow = "↑" if diff > 0 else "↓" if diff < 0 else "="
+            trend = f" (на прошлой неделе {pulse.active_before} {arrow})"
+        lines = [
+            f"📒 {name} · пульс класса",
+            f"Неделя с {pulse.week_start:%d.%m}",
+            "",
+            f"👥 Активны: {len(pulse.active)} из {len(pulse.students)}{trend}",
+        ]
+        if pulse.eligible and pulse.place_total:
+            lines.append(
+                f"🏁 Соревнование классов: {pulse.place_total}-е по сумме, "
+                f"{pulse.place_average}-е в среднем на ученика"
+            )
+        elif pulse.eligible:
+            lines.append("🏁 Соревнование классов: допуск есть, монет за неделю пока нет")
+        else:
+            lines.append(
+                f"🏁 Соревнование классов: до допуска не хватает активных — {pulse.need_active}"
+            )
+        lines.append(
+            f"🌟 Успехов за неделю: {pulse.successes_week} · 🏅 новых достижений: {pulse.new_achievements}"
+        )
+        if pulse.streaks:
+            lines += ["", "🔥 Серии:"]
+            lines += [f"• {s.display_name} — {days} дн., «{title}»" for s, title, days in pulse.streaks]
+        lines.append("")
+        lines.append(
+            f"😴 Не участвуют 2+ недели: {len(pulse.inactive)}" if pulse.inactive
+            else "😴 Неактивных нет — все в деле 👏"
+        )
+        lines.append(
+            f"⚠️ Ответ отклонён и не пересдан: {len(pulse.need_help)}" if pulse.need_help
+            else "⚠️ Отклонённых и не пересданных ответов нет"
+        )
+        return "\n".join(lines), kb.class_pulse(
+            class_id, len(pulse.inactive), len(pulse.need_help), successes_service.can_write(user)
+        )
+
+    async def _pulse_list(self, session: AsyncSession, class_id: int, inactive: bool) -> Screen | str:
+        pulse = await pulse_service.class_pulse(session, class_id)
+        if pulse is None:
+            return "Класс не найден."
+        name = pulse.school_class.name
+        if inactive:
+            items = [
+                (s, f"с {format_day(seen)}" if seen else "ещё ни разу") for s, seen in pulse.inactive
+            ]
+            title = (
+                f"😴 {name}: не участвуют 2+ недели\n"
+                "Последний отправленный ответ — рядом с именем. Возможно, ученику нужен "
+                "интересный ему квест или личное приглашение."
+            )
+        else:
+            items = [(s, f"«{quest}»") for s, quest in pulse.need_help]
+            title = (
+                f"⚠️ {name}: ответ отклонён и не пересдан\n"
+                "Рядом с именем — квест. Подскажите ученику, что исправить: "
+                "по кнопке откроется его карточка."
+            )
+        if not items:
+            return f"{title}\n\nСейчас таких учеников нет 👏", kb.pulse_students([], class_id)
+        return title, kb.pulse_students(items, class_id)
 
     async def _journal_students(self, session: AsyncSession, class_id: int, page: int) -> Screen | str:
         school_class = await session.get(SchoolClass, class_id)

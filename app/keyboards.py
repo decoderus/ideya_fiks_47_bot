@@ -850,8 +850,37 @@ def journal_students(
         ]
         for s in students
     ]
-    rows += _pages(f"jr:cls:{class_id}:", page, has_more)
+    rows += _pages(f"jr:all:{class_id}:", page, has_more)
+    rows.append([_to_pulse(class_id)])
+    return keyboard(rows)
+
+
+def _to_pulse(class_id: int) -> dict:
+    return callback_button("« Пульс класса", f"jr:cls:{class_id}:0")
+
+
+def class_pulse(class_id: int, inactive: int, need_help: int, can_write: bool) -> list[dict]:
+    """«Пульс класса»: списки, где учителю действовать, и все ученики."""
+    lists = []
+    if inactive:
+        lists.append(callback_button(f"😴 Неактивные · {inactive}", f"jr:idle:{class_id}"))
+    if need_help:
+        lists.append(callback_button(f"⚠️ Нужна помощь · {need_help}", f"jr:help:{class_id}"))
+    rows = [lists] if lists else []
+    rows.append([callback_button("👥 Все ученики", f"jr:all:{class_id}:0")])
+    if can_write:
+        rows.append([callback_button("✍️ Отметить успех", f"jr:nc:{class_id}:0")])
     rows.append([callback_button("« К классам", "menu:journal")])
+    return keyboard(rows)
+
+
+def pulse_students(items: list[tuple], class_id: int) -> list[dict]:
+    """items: (ученик, подпись) — в карточку ученика."""
+    rows = [
+        [callback_button(f"{_short(s.display_name, 24)} · {_short(note, 22)}", f"jr:st:{s.id}:0")]
+        for s, note in items[:LIST_LIMIT]
+    ]
+    rows.append([_to_pulse(class_id)])
     return keyboard(rows)
 
 

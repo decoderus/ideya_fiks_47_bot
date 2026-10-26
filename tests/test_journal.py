@@ -98,7 +98,7 @@ async def test_card_class_and_feed(env):
 
     async with sessions() as s:
         class_id = (await get_user(sessions, 5)).class_id
-    await bot.handle_update(cb(ADMIN, f"jr:cls:{class_id}:0"))
+    await bot.handle_update(cb(ADMIN, f"jr:all:{class_id}:0"))
     answer = client.answers[-1]
     assert "Успехов за всё время: 2" in answer["text"]
     assert any(b["text"].endswith("· 🌟2 · 🎯0") for b in buttons(answer["attachments"]))
