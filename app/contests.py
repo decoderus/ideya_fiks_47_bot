@@ -182,7 +182,7 @@ async def _recipients(sessions) -> list[int]:
 
 
 async def _broadcast(bot, user_ids: list[int], text: str, attachments: list[dict]) -> int:
-    from app.bot import BROADCAST_INTERVAL
+    from app.ui import BROADCAST_INTERVAL
 
     sent = 0
     for i, user_id in enumerate(user_ids):

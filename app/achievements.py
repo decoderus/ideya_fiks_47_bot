@@ -22,6 +22,7 @@ ST_ACH_EMOJI = "ach_emoji"
 ST_ACH_REWARD = "ach_reward"
 ST_ACH_SET_REWARD = "ach_set_reward"
 ACH_STATES = (ST_ACH_TITLE, ST_ACH_DESC, ST_ACH_EMOJI, ST_ACH_REWARD, ST_ACH_SET_REWARD)
+KEEP_STATE = ("ach:emoji:",)  # выбор значка — шаг создания достижения
 
 KIND_TITLES = {
     AchievementKind.manual: "выдаёт админ",

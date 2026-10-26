@@ -9,11 +9,12 @@ import logging
 import httpx
 
 from app import keyboards as kb
-from app.bot import BROADCAST_INTERVAL, Bot
+from app.bot import Bot
 from app.config import get_settings
 from app.db.session import make_engine, make_session_factory
 from app.max_api import MaxClient
 from app.services import reminders as reminders_service
+from app.ui import BROADCAST_INTERVAL
 
 log = logging.getLogger("aktiv.reminders")
 

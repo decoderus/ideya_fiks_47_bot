@@ -7,6 +7,9 @@ Screen = tuple[str, list[dict] | None]
 
 MSK = timezone(timedelta(hours=3))
 
+# Пауза между сообщениями массовой рассылки: общий лимит MAX — 30 запросов в секунду
+BROADCAST_INTERVAL = 0.05
+
 
 def parse_id(payload: str) -> int | None:
     """Число в конце payload: «q:open:5» -> 5."""

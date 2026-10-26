@@ -123,7 +123,7 @@ class ChannelMixin:
             if action == "fix":
                 await users_service.set_state(session, user, ST_PUB_NOTE, {"submission_id": submission.id})
                 return (
-                    f"✏️ Что исправить автору перед публикацией?\n\n"
+                    "✏️ Что исправить автору перед публикацией?\n\n"
                     "Напишите одним сообщением — например, какие ошибки поправить. "
                     "Ученик получит комментарий и пришлёт исправленный вариант.",
                     kb.publication_note(submission.id),

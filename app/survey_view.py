@@ -12,13 +12,14 @@ from app.services import audit
 from app.services import survey as survey_service
 from app.services import users as users_service
 from app.services.survey import SurveyError
-from app.ui import Screen
+from app.ui import BROADCAST_INTERVAL, Screen
 
 log = logging.getLogger("aktiv.survey")
 
 ST_SURVEY = "survey"
 ST_SURVEY_TEXT = "survey_text"
 SURVEY_STATES = (ST_SURVEY, ST_SURVEY_TEXT)
+KEEP_STATE = ("sv:a:", "sv:skip")
 
 INVITE = {
     Role.student: (
@@ -32,7 +33,6 @@ INVITE = {
         "Ответы анонимны: администрация видит только общие итоги."
     ),
 }
-BROADCAST_INTERVAL = 0.05
 
 
 def _bar(count: int, total: int) -> str:

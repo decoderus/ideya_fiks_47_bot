@@ -16,7 +16,7 @@ from app.services import pulse as pulse_service
 from app.services import successes as successes_service
 from app.services import users as users_service
 from app.services.successes import SuccessError
-from app.ui import Screen, format_day, parse_id
+from app.ui import Screen, format_day
 
 log = logging.getLogger("aktiv.journal")
 
@@ -24,6 +24,7 @@ ST_JR_CAT = "jr_cat"
 ST_JR_TEXT = "jr_text"
 ST_JR_COINS = "jr_coins"
 JOURNAL_STATES = (ST_JR_CAT, ST_JR_TEXT, ST_JR_COINS)
+KEEP_STATE = ("jr:cat:", "jr:coins:")
 
 
 def _ints(payload: str) -> list[int]:
