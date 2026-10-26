@@ -38,6 +38,7 @@ from app.journal import JOURNAL_STATES, JournalMixin
 from app.seasons_view import SEASON_STATES, SeasonsMixin
 from app.quest_edit import QUEST_EDIT_STATES, QuestEditMixin
 from app.questions_view import QUESTION_STATES, QuestionsMixin
+from app.survey_view import SURVEY_STATES, SurveyMixin
 from app.registration import RegistrationMixin
 from app.school_admin import CLASS_STATES, SchoolAdminMixin
 from app.services import broadcasts as broadcasts_service
@@ -55,6 +56,7 @@ from app.services import school_stats
 from app.services import settings as settings_service
 from app.services import seasons as seasons_service
 from app.services import shop as shop_service
+from app.services import survey as survey_service
 from app.services import users as users_service
 from app.services.broadcasts import BroadcastError
 from app.services.questions import QuestionError
@@ -137,6 +139,7 @@ class Bot(
     ContestsMixin,
     SeasonsMixin,
     QuestionsMixin,
+    SurveyMixin,
     DemoMixin,
 ):
     def __init__(
@@ -163,6 +166,8 @@ class Bot(
         self._tasks: set[asyncio.Task] = set()
         # Счётчики на кнопках меню (обновляются на каждое событие пользователя)
         self.menu_counts: dict[str, int] = {}
+        # Кнопка «📋 Опрос» в меню: опрос открыт, а пользователь его ещё не прошёл
+        self.survey_pending = False
         # Сбои и ошибки — оповещения админам (app/health.py); получатели — ALERT_IDS или все админы
         self.watchdog = health.Watchdog()
         self.alert_ids: set[int] = set()
@@ -388,6 +393,8 @@ class Bot(
             return await self._question_step(session, user, text)
         if user.state in JOURNAL_STATES:
             return await self._journal_step(session, user, text)
+        if user.state in SURVEY_STATES:
+            return await self._survey_text(session, user, text)
         return self._menu(user)
 
     async def _route_callback(
@@ -397,7 +404,7 @@ class Bot(
         # Любая кнопка, кроме шагов создания квеста и оповещения, прерывает начатый диалог
         if user.state and not payload.startswith(
             ("nq:", "bc:aud:", "bc:send", "rw:stock:", "rw:photo:", "coins:ok", "ach:emoji:", "rev:nr:", "rev:nw:",
-             "jr:cat:", "jr:coins:")
+             "jr:cat:", "jr:coins:", "sv:a:", "sv:skip")
         ):
             await users_service.set_state(session, user, None)
 
@@ -493,6 +500,8 @@ class Bot(
             return await self._journal(session, user, payload)
         if payload == "menu:stats":
             return await self._stats(session, user)
+        if payload.startswith("sv:"):
+            return await self._survey(session, user, payload)
         if payload.startswith("log:"):
             return await self._logs(session, user, payload)
         if payload == "menu:teachers" or payload.startswith(("tr:", "tc:")):
@@ -570,14 +579,17 @@ class Bot(
             lines.append("🧪 Демо-версия: /demo — сменить роль")
         lines.append("Выберите раздел:")
         return "\n".join(lines), kb.menu_for(
-            user.role, self.moderator_review, help_first=not user.help_seen, counts=self.menu_counts
+            user.role, self.moderator_review, help_first=not user.help_seen, counts=self.menu_counts,
+            survey=self.survey_pending,
         )
 
     async def _refresh_menu_counts(self, session: AsyncSession, user: User) -> None:
         """Счётчики на кнопках меню: что ждёт действия в разделе."""
         self.menu_counts = {}
+        self.survey_pending = False
         if user.full_name is None:
             return
+        self.survey_pending = await survey_service.pending(session, user)
         if user.role in (Role.admin, Role.moderator):
             self.menu_counts = {
                 "menu:rewards": len(await shop_service.pending_for(session, user)),

@@ -531,3 +531,18 @@ class Success(Base):
 
     student: Mapped[User] = relationship(foreign_keys=[student_id], lazy="joined")
     author: Mapped[User] = relationship(foreign_keys=[author_id], lazy="joined")
+
+
+class SurveyResponse(Base):
+    """Ответ на опрос. Один на пользователя и опрос; итоги админ видит без имён."""
+
+    __tablename__ = "survey_responses"
+    __table_args__ = (UniqueConstraint("survey", "user_id"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    survey: Mapped[str] = mapped_column(String(32))
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    role: Mapped[Role] = mapped_column(Enum(Role))
+    answers: Mapped[dict] = mapped_column(JSON)  # вопрос -> вариант
+    comment: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)

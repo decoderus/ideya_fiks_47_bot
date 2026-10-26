@@ -70,6 +70,10 @@ HIDDEN_SUCCESS = (
     "🔒 Здесь была запись учителя об успехе ученика. В демо-версии текст скрыт: в нём могут быть "
     "имена и личные подробности. Категория, автор и дата сохранены."
 )
+HIDDEN_SURVEY = (
+    "🔒 Здесь было пожелание из опроса. В демо-версии оно скрыто: в тексте могут быть имена "
+    "и личные подробности. Ответы на вопросы с кнопками сохранены."
+)
 HIDDEN_REASON = "🔒 Причина скрыта в демо-версии: в ней упоминался реальный человек"
 HIDDEN_COMMENT = "🔒 Комментарий скрыт в демо-версии: в нём упоминался реальный человек"
 DEMO_EXAMPLE = "🧪 Пример ответа, придуман для демо-версии:\n"
@@ -217,6 +221,10 @@ def anonymize(src: str, dst: str, seed: int = 47) -> dict:
             "UPDATE coin_transactions SET reason = '🌟 Успех (запись скрыта в демо-версии)' "
             "WHERE reason LIKE '🌟 Успех:%'"
         )
+    if "survey_responses" in tables:
+        stats["survey"] = db.execute(
+            "UPDATE survey_responses SET comment = ? WHERE comment IS NOT NULL", (HIDDEN_SURVEY,)
+        ).rowcount
 
     # Оповещения
     short = [bid for (bid,) in db.execute(

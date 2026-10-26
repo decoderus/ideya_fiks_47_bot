@@ -155,6 +155,7 @@ def _short(text: str, limit: int = 40) -> str:
 
 
 HELP_ITEM = ("ℹ️ Помощь", "menu:help")
+SURVEY_ITEM = ("📋 Опрос", "sv:start")
 
 
 def with_count(text: str, count: int) -> str:
@@ -167,10 +168,14 @@ def menu_for(
     moderator_review: bool = False,
     help_first: bool = False,
     counts: dict[str, int] | None = None,
+    survey: bool = False,
 ) -> list[dict]:
     """help_first — пользователь ещё не открывал справку: она первой кнопкой, иначе — последней.
-    counts — сколько ждёт действия в разделе (payload раздела -> число), показывается на кнопке."""
+    counts — сколько ждёт действия в разделе (payload раздела -> число), показывается на кнопке.
+    survey — опрос открыт и ещё не пройден: кнопка «📋 Опрос» первой."""
     items = [HELP_ITEM, *MENUS[role]] if help_first else [*MENUS[role], HELP_ITEM]
+    if survey:
+        items.insert(0, SURVEY_ITEM)
     counts = counts or {}
     items = [(with_count(text, counts.get(payload, 0)), payload) for text, payload in items]
     if role == Role.moderator and moderator_review:
@@ -1395,6 +1400,7 @@ def stats(admin: bool = True, unchecked: int = 0) -> list[dict]:
         [
             registrations,
             logs,
+            *([[callback_button("📋 Опрос учеников и учителей", "sv:admin")]] if admin else []),
             [callback_button("🔄 Обновить", "menu:stats")],
             [callback_button("« В меню", "menu:main")],
         ]
@@ -1776,3 +1782,35 @@ def broadcast_people(
         rows.append(nav)
     rows.append([callback_button(*back)])
     return keyboard(rows)
+
+
+# --- опрос ---
+
+
+def survey_options(index: int, options: tuple, nps: bool = False) -> list[dict]:
+    buttons = [callback_button(label, f"sv:a:{index}:{key}") for key, label in options]
+    rows = _grid(buttons, 4) if nps else [[b] for b in buttons]
+    rows.append([callback_button("✖️ Пройду позже", "cancel")])
+    return keyboard(rows)
+
+
+def survey_skip() -> list[dict]:
+    return keyboard([[callback_button("Пропустить и завершить", "sv:skip")]])
+
+
+def survey_invite() -> list[dict]:
+    return keyboard([[callback_button("📋 Пройти опрос", "sv:start")]])
+
+
+def survey_admin(opened: bool, waiting: int) -> list[dict]:
+    rows = [[callback_button(with_count("📨 Отправить опрос", waiting), "sv:send")]]
+    if opened:
+        rows.append([callback_button("🔒 Закрыть опрос", "sv:close")])
+    rows.append([callback_button("🎒 Ученики", "sv:res:student"), callback_button("👩‍🏫 Учителя", "sv:res:teacher")])
+    rows.append([callback_button("💬 Пожелания", "sv:com")])
+    rows.append([callback_button("📊 К статистике", "menu:stats")])
+    return keyboard(rows)
+
+
+def survey_back() -> list[dict]:
+    return keyboard([[callback_button("« К опросу", "sv:admin")]])
