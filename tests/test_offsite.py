@@ -23,7 +23,7 @@ LISTING = """<?xml version="1.0" encoding="utf-8"?>
 
 def settings(**kw):
     base = dict(
-        offsite_url="https://webdav.example.ru", offsite_user="school", offsite_password="app-pass",
+        offsite_token="", offsite_url="https://webdav.example.ru", offsite_user="school", offsite_password="app-pass",
         offsite_dir="aktiv-backups", offsite_keep_days=30, backup_passphrase="секрет 123",
     )
     return SimpleNamespace(**{**base, **kw})
@@ -82,3 +82,34 @@ def test_errors(tmp_path):
     with pytest.raises(offsite.OffsiteError, match="нет связи"):
         offsite.send(src, settings(), httpx.MockTransport(offline))
     assert not (tmp_path / f"{src.name}.enc").exists()
+
+
+def test_yandex_disk_rest(tmp_path):
+    requests = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append((request.method, request.url.host, request.url.path, dict(request.url.params)))
+        if request.url.host == "uploader.example":
+            assert "authorization" not in request.headers  # токен не уходит на сервер загрузки
+            return httpx.Response(201)
+        assert request.headers["authorization"] == "OAuth tok"
+        if request.url.path.endswith("/resources/upload"):
+            return httpx.Response(200, json={"href": "https://uploader.example/put/1", "method": "PUT"})
+        if request.method == "GET":
+            return httpx.Response(200, json={"_embedded": {"items": [
+                {"name": "aktiv-2026-09-01_03-30.db.gz.enc"}, {"name": "aktiv-2026-10-25_03-30.db.gz.enc"},
+                {"name": "readme.txt"},
+            ]}})
+        return httpx.Response(204)
+
+    src = backup_file(tmp_path)
+    offsite.send(src, settings(offsite_token="tok", offsite_user=""), httpx.MockTransport(handler), now=NOW)
+    upload = next(r for r in requests if r[2].endswith("/resources/upload"))
+    assert upload[3]["path"] == "app:/aktiv-2026-10-26_03-30.db.gz.enc"
+    assert any(r[1] == "uploader.example" and r[0] == "PUT" for r in requests)
+    deletes = [r[3]["path"] for r in requests if r[0] == "DELETE"]
+    assert deletes == ["app:/aktiv-2026-09-01_03-30.db.gz.enc"]
+
+    expired_token = httpx.MockTransport(lambda request: httpx.Response(401))
+    with pytest.raises(offsite.OffsiteError, match="токен"):
+        offsite.send(src, settings(offsite_token="old"), expired_token)

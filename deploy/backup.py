@@ -4,8 +4,8 @@
 Вручную: sudo -u aktiv /opt/aktiv/app/.venv/bin/python deploy/backup.py
 В Docker пути задают переменные BACKUP_DB и BACKUP_DIR, запускает планировщик app/scheduler.py.
 
-Если в .env заданы OFFSITE_USER и BACKUP_PASSPHRASE, свежая копия шифруется и уходит в облако
-(deploy/offsite.py). Сбой выгрузки не мешает локальной копии: админ получает сообщение в MAX.
+Если в .env настроено облако (OFFSITE_TOKEN или OFFSITE_USER) и BACKUP_PASSPHRASE, свежая копия
+шифруется и уходит в облако (deploy/offsite.py). Сбой выгрузки не мешает локальной копии: админ получает сообщение в MAX.
 """
 import gzip
 import os
@@ -57,17 +57,17 @@ def offsite(backup: Path) -> None:
         settings = get_settings()
     except Exception:  # нет BOT_TOKEN и прочих настроек — выгрузка не настроена
         return
-    if not settings.offsite_user:
+    if not offsite_service.configured(settings):
         return
     try:
         name = offsite_service.send(backup, settings)
-        print(f"Копия в облаке: {settings.offsite_dir}/{name}")
+        print(f"Копия в облаке: {name}")
     except offsite_service.OffsiteError as exc:
         print(f"Копия НЕ отправлена в облако: {exc}")
         offsite_service.alert(
             settings,
             f"⚠️ Ночная копия базы не отправлена в облако: {exc}.\n"
-            "Локальная копия на сервере сохранена. Проверьте пароль приложения и место на диске.",
+            "Локальная копия на сервере сохранена. Проверьте токен облака и место на диске.",
         )
 
 

@@ -1,7 +1,11 @@
-"""Копия базы вне сервера: шифрование и выгрузка в облако по WebDAV (Яндекс Диск и похожие).
+"""Копия базы вне сервера: шифрование и выгрузка в облако.
 
 Вызывается из deploy/backup.py после локальной копии. Настройки — в .env (app/config.py):
-OFFSITE_USER, OFFSITE_PASSWORD (пароль приложения), BACKUP_PASSPHRASE; без них ничего не делает.
+- Яндекс Диск через REST API: OFFSITE_TOKEN — OAuth-токен с правом «доступ к папке приложения»
+  (cloud_api:disk.app_folder). Работает на бесплатном тарифе; копии лежат в «Приложения/<имя>».
+- Любое облако с WebDAV (на бесплатном Яндекс Диске запись по WebDAV запрещена):
+  OFFSITE_URL, OFFSITE_USER, OFFSITE_PASSWORD.
+Без BACKUP_PASSPHRASE копия в облако не отправляется.
 
 Файл шифруется AES-256 (openssl, ключ из пароля через PBKDF2), в облаке лежит только *.db.gz.enc.
 Восстановить:
@@ -92,6 +96,65 @@ class WebDav:
         self.client.close()
 
 
+class YandexDisk:
+    """REST API Яндекс Диска, папка приложения (app:/)."""
+
+    API = "https://cloud-api.yandex.net/v1/disk"
+
+    def __init__(self, token: str, transport=None):
+        self.client = httpx.Client(
+            base_url=self.API, headers={"Authorization": f"OAuth {token}"}, timeout=TIMEOUT,
+            transport=transport,
+        )
+        # Файл уходит на сервер загрузки по одноразовой ссылке — токен ему не передаём
+        self.uploader = httpx.Client(timeout=TIMEOUT, transport=transport)
+
+    def _check(self, response: httpx.Response, action: str) -> None:
+        if response.status_code == 401:
+            raise OffsiteError("Яндекс не принял токен (OFFSITE_TOKEN): получите новый")
+        if response.status_code == 507:
+            raise OffsiteError("на Яндекс Диске закончилось место")
+        if response.status_code >= 400:
+            raise OffsiteError(f"{action}: HTTP {response.status_code}")
+
+    def ensure_folder(self) -> None:
+        """Папка приложения создаётся Диском сама при первой загрузке."""
+
+    def upload(self, path: Path) -> None:
+        response = self.client.get("/resources/upload", params={"path": f"app:/{path.name}", "overwrite": "true"})
+        self._check(response, "ссылка для загрузки")
+        with path.open("rb") as f:
+            put = self.uploader.put(response.json()["href"], content=f.read())
+        self._check(put, "загрузка")
+
+    def list_names(self) -> list[str]:
+        response = self.client.get("/resources", params={"path": "app:/", "limit": 1000, "fields": "_embedded.items.name"})
+        if response.status_code == 404:
+            return []
+        self._check(response, "список файлов")
+        items = (response.json().get("_embedded") or {}).get("items") or []
+        return sorted(item["name"] for item in items if STAMP.match(item.get("name", "")))
+
+    def delete(self, name: str) -> None:
+        response = self.client.delete("/resources", params={"path": f"app:/{name}", "permanently": "true"})
+        self._check(response, "удаление")
+
+    def close(self) -> None:
+        self.client.close()
+        self.uploader.close()
+
+
+def storage(settings, transport=None):
+    if settings.offsite_token:
+        return YandexDisk(settings.offsite_token, transport)
+    return WebDav(settings.offsite_url, settings.offsite_user, settings.offsite_password,
+                  settings.offsite_dir, transport)
+
+
+def configured(settings) -> bool:
+    return bool(settings.offsite_token or settings.offsite_user)
+
+
 def expired(names: list[str], keep_days: int, now: datetime) -> list[str]:
     """Копии старше keep_days дней (по дате в имени файла)."""
     border = now - timedelta(days=keep_days)
@@ -104,8 +167,7 @@ def send(backup: Path, settings, transport=None, now: datetime | None = None) ->
         raise OffsiteError("не задан BACKUP_PASSPHRASE — без шифрования копию в облако не отправляем")
     encrypted = backup.with_name(backup.name + ".enc")
     encrypt(backup, encrypted, settings.backup_passphrase)
-    dav = WebDav(settings.offsite_url, settings.offsite_user, settings.offsite_password,
-                 settings.offsite_dir, transport)
+    dav = storage(settings, transport)
     try:
         dav.ensure_folder()
         dav.upload(encrypted)
