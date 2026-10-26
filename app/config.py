@@ -23,6 +23,14 @@ class Settings(BaseSettings):
     # Демо-режим для жюри (app/demo.py) и база, которая копируется при первом запуске
     demo: bool = False
     demo_db: str = ""
+    # Копии базы вне сервера (deploy/offsite.py): облако по WebDAV, например Яндекс Диск.
+    # Пустой OFFSITE_USER — выгрузка выключена. Копии шифруются ключом BACKUP_PASSPHRASE.
+    offsite_url: str = "https://webdav.yandex.ru"
+    offsite_user: str = ""
+    offsite_password: str = ""  # пароль приложения, не основной пароль аккаунта
+    offsite_dir: str = "aktiv-backups"
+    offsite_keep_days: int = 30
+    backup_passphrase: str = ""
 
     @field_validator("admin_ids")
     @classmethod
