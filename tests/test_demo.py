@@ -1,6 +1,8 @@
 """Демо-режим для жюри и обезличивание базы."""
 import sqlite3
 
+import pytest
+
 from sqlalchemy import select
 
 from app import demo
@@ -97,6 +99,24 @@ async def test_demo_off_ignores_demo_commands(env):
     assert (await get_user(sessions, 5)).role == Role.student
     await bot.handle_update(msg(5, "/start"))
     assert "/demo" not in client.sent[-1][1]
+    # и администратору тоже: роль не меняется, экран выбора ролей не появляется
+    await bot.handle_update(msg(ADMIN, "/demo"))
+    assert "Демо" not in client.sent[-1][1]
+    await bot.handle_update(cb(ADMIN, "demo:role:student"))
+    assert (await get_user(sessions, ADMIN)).role == Role.admin
+
+
+async def test_demo_refuses_real_database(env):
+    _, _, sessions = env
+    async with sessions() as s:
+        await demo.check_database(s)  # пустая база — можно
+    await register(env[0], 5)
+    async with sessions() as s:
+        with pytest.raises(demo.RealDatabaseError):
+            await demo.check_database(s)
+        s.add(User(max_user_id=demo.FAKE_ID_BASE + 1, full_name="Вымышленный Ученик"))
+        await s.commit()
+        await demo.check_database(s)  # обезличенная — можно
 
 
 async def test_fake_users_get_no_messages(env):

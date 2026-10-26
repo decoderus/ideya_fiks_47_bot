@@ -20,7 +20,11 @@ async def run() -> None:
     settings = get_settings()
     engine = make_engine(settings.database_url)
     client = MaxClient(settings.bot_token, settings.max_api_base, settings.ca_bundle)
-    bot = Bot(client, make_session_factory(engine), settings.admin_id_set, demo=settings.demo)
+    sessions = make_session_factory(engine)
+    if settings.demo:
+        async with sessions() as session:
+            await demo.check_database(session)
+    bot = Bot(client, sessions, settings.admin_id_set, demo=settings.demo)
 
     heartbeat = health.Heartbeat(settings.heartbeat_file)
     previous = heartbeat.read()  # как закончился прошлый запуск

@@ -2,7 +2,10 @@
 
 - /demo — любой пользователь выбирает роль: ученик, учитель, модератор, админ;
 - сообщения вымышленным пользователям (номер MAX от FAKE_ID_BASE) не отправляются;
-- при первом запуске, если базы ещё нет, она копируется из DEMO_DB.
+- при первом запуске, если базы ещё нет, она копируется из DEMO_DB;
+- на базе с настоящей школой (нет ни одного вымышленного пользователя) демо-режим не запускается.
+
+Рабочий бот школы запускается без DEMO: тогда /demo не работает ни у кого, включая админа.
 """
 import shutil
 from pathlib import Path
@@ -23,6 +26,26 @@ START_REASON = "🧪 Демо: стартовый баланс"
 
 def is_fake(max_user_id: int) -> bool:
     return max_user_id >= FAKE_ID_BASE
+
+
+class RealDatabaseError(RuntimeError):
+    """DEMO=true на базе с настоящими пользователями."""
+
+
+async def check_database(session: AsyncSession) -> None:
+    """Демо-режим разрешён только на обезличенной или пустой базе.
+
+    /demo меняет роли и монеты прямо в базе: на настоящей школе это испортило бы рейтинг
+    и соревнование. Обезличенная база узнаётся по вымышленным номерам MAX."""
+    users = await session.scalar(select(func.count()).select_from(User)) or 0
+    fake = await session.scalar(
+        select(func.count()).select_from(User).where(User.max_user_id >= FAKE_ID_BASE)
+    ) or 0
+    if users and not fake:
+        raise RealDatabaseError(
+            "DEMO=true на базе с настоящими пользователями: демо-режим разрешён только "
+            "на обезличенной базе (deploy/anonymize.py). Уберите DEMO из настроек."
+        )
 
 
 def seed_database(database_url: str, demo_db: str) -> bool:
