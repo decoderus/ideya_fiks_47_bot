@@ -49,3 +49,21 @@ def test_deep_screens_get_home():
     """Карточки в глубине разделов: квест ученика, достижение, вопрос."""
     for markup in (kb.quest_info(1), kb.question_card(1, None), kb.question_card(1, "✍️ Ответить")):
         assert ("🏠 В меню", "menu:main") in [b for row in rows_of(markup) for b in row]
+
+
+def test_class_lists_are_compact_grids():
+    """Списки классов — сеткой по 4: 20 классов занимают 5 рядов, а не 20."""
+    from types import SimpleNamespace
+
+    classes = [SimpleNamespace(id=i, name=f"{i // 2 + 1}{'АБ'[i % 2]}") for i in range(20)]
+    for markup in (
+        kb.journal_classes(classes),
+        kb.coins_classes(classes),
+        kb.broadcast_classes(classes, "bc:aud:class"),
+        kb.quest_audience(classes, allow_all=False),
+    ):
+        rows = rows_of(markup)
+        names = {c.name for c in classes}
+        class_rows = [r for r in rows if all(text in names for text, _ in r)]
+        assert len(class_rows) == 5 and all(len(r) == 4 for r in class_rows), rows
+        assert rows[0][0][0] == "1А"  # без значка, только название

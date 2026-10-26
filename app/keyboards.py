@@ -220,8 +220,7 @@ def quest_repeats() -> list[dict]:
 def audience(classes: list[SchoolClass], prefix: str, allow_all: bool = True) -> list[dict]:
     """Выбор «вся школа» или класс. prefix: nq:aud (квест) или bc:aud (оповещение)."""
     rows = [[callback_button("🏫 Вся школа", f"{prefix}:all")]] if allow_all else []
-    for c in classes:
-        rows.append([callback_button(f"👥 {_short(c.name)}", f"{prefix}:{c.id}")])
+    rows += _class_grid(classes, prefix + ":{id}")
     rows.append([callback_button("✖️ Отмена", "cancel")])
     return keyboard(rows)
 
@@ -825,7 +824,7 @@ JOURNAL_PAGE = 10
 
 
 def journal_classes(classes: list[SchoolClass]) -> list[dict]:
-    rows = [[callback_button(f"👥 {_short(c.name)}", f"jr:cls:{c.id}:0")] for c in classes]
+    rows = _class_grid(classes, "jr:cls:{id}:0")
     rows.append([callback_button("« В меню", "menu:main")])
     return keyboard(rows)
 
@@ -875,7 +874,7 @@ COINS_PAGE = 10
 
 
 def coins_classes(classes: list[SchoolClass]) -> list[dict]:
-    rows = [[callback_button(f"👥 {_short(c.name)}", f"coins:cls:{c.id}:0")] for c in classes]
+    rows = _class_grid(classes, "coins:cls:{id}:0")
     rows.append([callback_button("« В меню", "menu:main")])
     return keyboard(rows)
 
@@ -930,6 +929,11 @@ def coins_confirm() -> list[dict]:
 
 def _grid(buttons: list[dict], per_row: int = 4) -> list[list[dict]]:
     return [buttons[i : i + per_row] for i in range(0, len(buttons), per_row)]
+
+
+def _class_grid(classes: list[SchoolClass], payload: str) -> list[list[dict]]:
+    """Классы сеткой по 4 в ряд: 20 классов — 5 рядов. payload — шаблон с {id}."""
+    return _grid([callback_button(_short(c.name, 12), payload.format(id=c.id)) for c in classes])
 
 
 def reg_roles(selected: str) -> list[dict]:
@@ -1644,14 +1648,7 @@ def broadcast_audience() -> list[dict]:
 
 def broadcast_classes(classes: list[SchoolClass], prefix: str) -> list[dict]:
     """Выбор класса: prefix bc:aud:class (весь класс) или bc:aud:pc (затем ученик)."""
-    rows, row = [], []
-    for c in classes:
-        row.append(callback_button(_short(c.name, 16), f"{prefix}:{c.id}"))
-        if len(row) == 3:
-            rows.append(row)
-            row = []
-    if row:
-        rows.append(row)
+    rows = _class_grid(classes, prefix + ":{id}")
     rows.append([callback_button("« Назад", "bc:aud:back")])
     return keyboard(rows)
 
