@@ -1,6 +1,7 @@
 # Бот «Сферум. Актив» для MAX.
 #   docker build -t sferum-aktiv:1.0 .
-#   docker run -d --name sferum-aktiv --env-file .env -v aktiv-data:/app/data sferum-aktiv:1.0
+#   docker run -d --name sferum-aktiv --env-file .env -v aktiv-data:/app/data -p 8080:8080 sferum-aktiv:1.0
+#   веб-интерфейс: http://localhost:8080 (вход — кнопкой «🌐 Веб-версия» в боте)
 FROM python:3.13-slim
 
 # TZ: время в журналах — московское (без пакета tzdata: в коде смещение МСК задано явно)
@@ -23,6 +24,7 @@ COPY . .
 # SCHEDULER: напоминания, итоги соревнований и копии базы запускает сам бот (app/scheduler.py)
 # DEMO: демо-режим для жюри — обезличенная база demo/aktiv-demo.db при первом запуске
 # и выбор роли командой /demo. Для настоящей школы: DEMO=false, DEMO_DB= (пустая база)
+# WEB_PORT: веб-интерфейс (app/web) на порту 8080; WEB_URL — его внешний адрес с https://
 ENV DATABASE_URL=sqlite+aiosqlite:////app/data/aktiv.db \
     AUDIT_LOG=/app/data/logs/audit.log \
     HEARTBEAT_FILE=/app/data/heartbeat.json \
@@ -31,13 +33,16 @@ ENV DATABASE_URL=sqlite+aiosqlite:////app/data/aktiv.db \
     CA_BUNDLE=/app/certs/ca-bundle.pem \
     SCHEDULER=true \
     DEMO=true \
-    DEMO_DB=/app/demo/aktiv-demo.db
+    DEMO_DB=/app/demo/aktiv-demo.db \
+    WEB_PORT=8080 \
+    WEB_HOST=0.0.0.0
 
 RUN useradd --uid 1000 --no-create-home --home-dir /app aktiv \
     && mkdir -p /app/data \
     && chown aktiv:aktiv /app/data
 USER aktiv
 VOLUME /app/data
+EXPOSE 8080
 
 # Жив ли бот: признак жизни (app/health.py) обновляется при каждом успешном обращении к MAX
 HEALTHCHECK --interval=60s --timeout=10s --start-period=60s --retries=3 \

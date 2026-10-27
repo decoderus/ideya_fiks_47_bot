@@ -33,6 +33,11 @@ def callback_button(text: str, payload: str) -> dict:
     return {"type": "callback", "text": text, "payload": payload}
 
 
+def link_button(text: str, url: str) -> dict:
+    """Кнопка-ссылка: открывает адрес в браузере."""
+    return {"type": "link", "text": text, "url": url}
+
+
 def keyboard(rows: list[list[dict]]) -> list[dict]:
     """Вложение inline_keyboard. rows: список рядов кнопок."""
     return [{"type": "inline_keyboard", "payload": {"buttons": rows}}]

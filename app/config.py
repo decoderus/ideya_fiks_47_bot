@@ -23,6 +23,13 @@ class Settings(BaseSettings):
     # Демо-режим для жюри (app/demo.py) и база, которая копируется при первом запуске
     demo: bool = False
     demo_db: str = ""
+    # Веб-интерфейс (app/web): WEB_PORT=0 — выключен. WEB_URL — внешний адрес с https://
+    # (для кнопки «🌐 Веб-версия» и мини-приложения MAX). WEB_SECRET — подпись пропусков и сессий,
+    # пусто — выводится из токена бота.
+    web_port: int = 0
+    web_host: str = "127.0.0.1"
+    web_url: str = ""
+    web_secret: str = ""
 
     @field_validator("admin_ids")
     @classmethod

@@ -119,6 +119,8 @@ CALLBACK_ROUTES: dict[str, str] = {
     "bcd:": "_broadcasts",
     "bc:read:": "_inbox_callback",
     "inbox:": "_inbox_callback",
+    # веб-версия
+    "web:": "_web_callback",
 }
 
 # Кнопки-шаги начатых диалогов: не сбрасывают User.state (остальные — сбрасывают)
@@ -224,6 +226,9 @@ class Bot(
         # Сбои и ошибки — оповещения админам (app/health.py); получатели — ALERT_IDS или все админы
         self.watchdog = health.Watchdog()
         self.alert_ids: set[int] = set()
+        # Веб-интерфейс (app/web): адрес и одноразовые пропуски; пусто — кнопки «🌐 Веб-версия» нет
+        self.web_url = ""
+        self.web_tickets = None
 
     async def _run_later(self, coro: Coroutine) -> None:
         if not self.background:
@@ -433,6 +438,18 @@ class Bot(
             return "Вы уже зарегистрированы."
         return "Неизвестное действие."
 
+    async def _web_callback(self, session: AsyncSession, user: User, payload: str) -> Screen | str:
+        """Одноразовая ссылка на веб-версию: действует 10 минут и только для того, кто нажал."""
+        if not (self.web_url and self.web_tickets):
+            return "Веб-версия пока не подключена."
+        link = f"{self.web_url.rstrip('/')}/?t={self.web_tickets.issue(user.max_user_id)}"
+        what = "профиль, успехи и рейтинг" if user.role == Role.student else "пульс любого класса и рейтинг"
+        return (
+            f"🌐 Веб-версия: {what} на одной странице.\n"
+            "Ссылка личная и действует 10 минут — не пересылайте её.",
+            kb.web_link(link),
+        )
+
     # --- команды ---
 
     async def _cmd_cancel(self, session: AsyncSession, user: User, text: str) -> Screen:
@@ -496,7 +513,7 @@ class Bot(
         lines.append("Выберите раздел:")
         return "\n".join(lines), kb.menu_for(
             user.role, self.moderator_review, help_first=not user.help_seen, counts=self.menu_counts,
-            survey=self.survey_pending,
+            survey=self.survey_pending, web=bool(self.web_url and self.web_tickets),
         )
 
     async def _refresh_menu_counts(self, session: AsyncSession, user: User) -> None:

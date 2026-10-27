@@ -16,6 +16,18 @@ from app.services import audit
 log = logging.getLogger("aktiv")
 
 
+async def start_web(bot: Bot, sessions, settings):
+    """Веб-интерфейс в том же процессе: страница, API и пропуски для кнопки «🌐 Веб-версия»."""
+    from app.web import auth as web_auth
+    from app.web import server as web_server
+
+    secret = web_auth.secret_from(settings.bot_token, settings.web_secret)
+    bot.web_tickets = web_auth.Tickets(secret)
+    bot.web_url = settings.web_url or f"http://localhost:{settings.web_port}"
+    app = web_server.make_app(sessions, settings.bot_token, secret, bot.web_tickets)
+    return await web_server.start(app, settings.web_host, settings.web_port)
+
+
 async def run() -> None:
     settings = get_settings()
     engine = make_engine(settings.database_url)
@@ -25,6 +37,7 @@ async def run() -> None:
         async with sessions() as session:
             await demo.check_database(session)
     bot = Bot(client, sessions, settings.admin_id_set, demo=settings.demo)
+    web_runner = await start_web(bot, sessions, settings) if settings.web_port else None
 
     heartbeat = health.Heartbeat(settings.heartbeat_file)
     previous = heartbeat.read()  # как закончился прошлый запуск
@@ -62,6 +75,8 @@ async def run() -> None:
     finally:
         if jobs:
             jobs.cancel()
+        if web_runner:
+            await web_runner.cleanup()
         await bot.wait_background()
         await client.close()
         await engine.dispose()

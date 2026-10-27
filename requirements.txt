@@ -8,9 +8,17 @@ python-dotenv==1.2.4
 SQLAlchemy[asyncio]==2.1.5
 alembic==1.20.0
 aiosqlite==0.22.1
+aiohttp==3.11.18
 
 # Зависимости библиотек выше
+aiohappyeyeballs==2.7.1
+aiosignal==1.4.0
 annotated-types==0.8.0
+attrs==26.1.0
+frozenlist==1.8.0
+multidict==6.9.1
+propcache==0.5.4
+yarl==1.25.1
 anyio==4.15.1
 certifi==2026.7.22
 greenlet==3.5.6

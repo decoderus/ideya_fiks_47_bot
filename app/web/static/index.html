@@ -1,0 +1,287 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Сферум. Актив</title>
+<script src="https://st.max.ru/js/max-web-app.js"></script>
+<style>
+/* Макет: шапка с именем и балансом, вкладки по роли, карточки разделов в одну колонку (до 640px) */
+:root {
+  --bg: #f4f6f8; --surface: #ffffff; --ink: #18202a; --muted: #5d6b7a; --line: #dde3ea;
+  --accent: #2a64d6; --accent-soft: #e6eefc; --good: #1f8a4c; --good-soft: #e3f4ea;
+  --warn: #a35d00; --warn-soft: #fcf0de; --gold: #b7860b;
+  --radius: 14px;
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #101418; --surface: #182029; --ink: #e8edf2; --muted: #9aa8b6; --line: #2a3542;
+    --accent: #7aa7ff; --accent-soft: #1d2b44; --good: #5fcf8d; --good-soft: #17301f;
+    --warn: #f0b35c; --warn-soft: #33281a; --gold: #e3b84a; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #101418; --surface: #182029; --ink: #e8edf2; --muted: #9aa8b6; --line: #2a3542;
+  --accent: #7aa7ff; --accent-soft: #1d2b44; --good: #5fcf8d; --good-soft: #17301f;
+  --warn: #f0b35c; --warn-soft: #33281a; --gold: #e3b84a; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--bg); color: var(--ink); font-family: var(--font); font-size: 15px; line-height: 1.5;
+  padding: max(12px, env(safe-area-inset-top)) max(14px, env(safe-area-inset-right)) max(24px, env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left));
+}
+.app { max-width: 640px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; }
+.app > * { min-width: 0; }
+.content { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; }
+header.top { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.who { min-width: 0; }
+.who b { display: block; font-size: 18px; overflow-wrap: anywhere; }
+.who span { color: var(--muted); font-size: 13px; }
+.balance { text-align: right; flex: none; }
+.balance b { font-size: 22px; font-variant-numeric: tabular-nums; }
+.balance span { display: block; color: var(--muted); font-size: 12px; }
+nav.tabs { display: flex; gap: 6px; background: var(--surface); border: 1px solid var(--line); border-radius: 999px; padding: 4px; }
+nav.tabs button { flex: 1; border: 0; background: none; color: var(--muted); font: inherit; font-weight: 600; padding: 8px 10px; border-radius: 999px; cursor: pointer; }
+nav.tabs button[aria-selected="true"] { background: var(--accent); color: #fff; }
+nav.tabs button:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; display: grid; gap: 10px; min-width: 0; }
+.card h2 { font-size: 15px; margin: 0; }
+.stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.stat { background: var(--bg); border-radius: 10px; padding: 10px 12px; }
+.stat b { display: block; font-size: 20px; font-variant-numeric: tabular-nums; }
+.stat span { color: var(--muted); font-size: 13px; }
+.list { list-style: none; margin: 0; padding: 0; display: grid; }
+.list li { display: flex; justify-content: space-between; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line); min-width: 0; }
+.list li:last-child { border-bottom: 0; }
+.list .name { min-width: 0; overflow-wrap: anywhere; }
+.list .num { font-variant-numeric: tabular-nums; color: var(--muted); flex: none; }
+.list li.me { background: var(--accent-soft); margin: 0 -10px; padding: 8px 10px; border-radius: 8px; }
+.place { display: inline-block; min-width: 2.2em; font-variant-numeric: tabular-nums; color: var(--muted); }
+.place.top { color: var(--gold); font-weight: 700; }
+.pill { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 12px; font-weight: 600; white-space: normal; }
+.pill.good { background: var(--good-soft); color: var(--good); }
+.pill.warn { background: var(--warn-soft); color: var(--warn); }
+.muted { color: var(--muted); }
+.bar { height: 8px; background: var(--bg); border-radius: 999px; overflow: hidden; }
+.bar i { display: block; height: 100%; background: var(--good); border-radius: 999px; }
+select { width: 100%; font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 9px 10px; }
+.success { display: grid; gap: 2px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.success:last-child { border-bottom: 0; }
+.success small { color: var(--muted); }
+.message { text-align: center; padding: 40px 16px; display: grid; gap: 10px; }
+.message b { font-size: 18px; }
+.foot { color: var(--muted); font-size: 12px; text-align: center; text-wrap: balance; }
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <div class="message" id="loading"><b>Сферум. Актив</b><span class="muted">Загрузка…</span></div>
+</div>
+
+<script>
+"use strict";
+const app = document.getElementById("app");
+let token = null;
+let me = null;
+
+function el(tag, attrs = {}, ...children) {
+  const node = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === "class") node.className = v;
+    else if (k.startsWith("on")) node.addEventListener(k.slice(2), v);
+    else node.setAttribute(k, v);
+  }
+  for (const child of children.flat()) {
+    if (child == null || child === false) continue;
+    node.append(child instanceof Node ? child : document.createTextNode(String(child)));
+  }
+  return node;
+}
+
+function coins(n) {
+  const a = Math.abs(n) % 100, b = a % 10;
+  const word = a > 10 && a < 20 ? "монет" : b === 1 ? "монета" : b >= 2 && b <= 4 ? "монеты" : "монет";
+  return `${n.toLocaleString("ru-RU")} ${word}`;
+}
+
+function message(title, text) {
+  app.replaceChildren(el("div", { class: "message" }, el("b", {}, title), el("span", { class: "muted" }, text)));
+}
+
+function store(value) {
+  try { value ? sessionStorage.setItem("aktiv-token", value) : sessionStorage.removeItem("aktiv-token"); } catch (e) {}
+}
+function stored() {
+  try { return sessionStorage.getItem("aktiv-token"); } catch (e) { return null; }
+}
+
+async function api(path, options = {}) {
+  const response = await fetch(path, {
+    ...options,
+    headers: { "Content-Type": "application/json", ...(token ? { Authorization: "Bearer " + token } : {}) },
+  });
+  const data = await response.json().catch(() => ({ error: "Нет связи с сервером" }));
+  if (!response.ok) throw Object.assign(new Error(data.error || "Ошибка"), { status: response.status });
+  return data;
+}
+
+async function login() {
+  const params = new URLSearchParams(location.search);
+  const ticket = params.get("t");
+  const initData = window.WebApp && window.WebApp.initData;
+  if (ticket) {
+    history.replaceState(null, "", location.pathname);  // пропуск одноразовый — убираем из адреса
+    token = (await api("/api/login", { method: "POST", body: JSON.stringify({ ticket }) })).token;
+  } else if (initData) {
+    token = (await api("/api/login", { method: "POST", body: JSON.stringify({ initData }) })).token;
+  } else {
+    token = stored();
+    if (!token) throw Object.assign(new Error("Откройте веб-версию из бота: кнопка «🌐 Веб-версия» в меню."), { status: 401 });
+  }
+  store(token);
+}
+
+// --- разделы ---
+
+function profileView() {
+  const p = me.profile;
+  const parts = [
+    el("div", { class: "card" },
+      el("div", { class: "stats" },
+        el("div", { class: "stat" }, el("b", {}, p.school_place ? `${p.school_place} из ${p.school_total}` : "—"), el("span", {}, "место в школе")),
+        el("div", { class: "stat" }, el("b", {}, p.class_place ? `${p.class_place} из ${p.class_total}` : "—"), el("span", {}, "место в классе")),
+        el("div", { class: "stat" }, el("b", {}, p.quests_done), el("span", {}, "квестов выполнено")),
+        el("div", { class: "stat" }, el("b", {}, p.earned.toLocaleString("ru-RU")), el("span", {}, "монет заработано")),
+      ),
+      p.pending ? el("div", {}, el("span", { class: "pill warn" }, `⏳ ждут проверки: ${p.pending}`)) : null,
+    ),
+  ];
+  if (p.streaks.length) {
+    parts.push(el("div", { class: "card" }, el("h2", {}, "🔥 Серии"),
+      el("ul", { class: "list" }, p.streaks.map(s => el("li", {},
+        el("span", { class: "name" }, s.title),
+        el("span", {}, `${s.days} дн. `, el("span", { class: "pill " + (s.done_today ? "good" : "warn") }, s.done_today ? "сегодня ✓" : "сегодня ещё нет"))
+      )))));
+  }
+  parts.push(el("div", { class: "card" }, el("h2", {}, `🏅 Достижения: ${p.achievements} из ${p.achievements_total}`),
+    p.recent.length
+      ? el("ul", { class: "list" }, p.recent.map(a => el("li", {}, el("span", { class: "name" }, `${a.emoji} ${a.title}`), el("span", { class: "num" }, a.date))))
+      : el("span", { class: "muted" }, "Пока нет — выполняйте квесты, и они появятся.")));
+  parts.push(el("div", { class: "card" }, el("h2", {}, "🌟 Мои успехи"),
+    me.successes.length
+      ? el("div", {}, me.successes.map(s => el("div", { class: "success" },
+          el("span", {}, `${s.emoji} ${s.text}`),
+          el("small", {}, `${s.category} · ${s.author} · ${s.date}${s.coins ? " · +" + coins(s.coins) : ""}`))))
+      : el("span", { class: "muted" }, "Здесь появятся успехи, которые отметят учителя.")));
+  return parts;
+}
+
+async function ratingView(container, classId) {
+  const data = await api("/api/rating" + (classId ? "?class_id=" + classId : ""));
+  const select = el("select", { id: "rating-class", "aria-label": "Чей рейтинг", onchange: e => render(() => ratingView(container, e.target.value)) },
+    el("option", { value: "" }, "Вся школа"),
+    data.classes.map(c => el("option", { value: c.id }, `Класс ${c.name}`)));
+  select.value = classId || "";
+  const rows = data.entries.map(e => el("li", { class: e.me ? "me" : "" },
+    el("span", { class: "name" }, el("span", { class: "place" + (e.place <= 3 ? " top" : "") }, e.place <= 3 ? ["🥇", "🥈", "🥉"][e.place - 1] : e.place + "."), e.name),
+    el("span", { class: "num" }, e.score.toLocaleString("ru-RU"))));
+  const mine = data.mine && !data.entries.some(e => e.me)
+    ? el("div", { class: "muted" }, `Ваше место: ${data.mine.place} из ${data.total}`) : null;
+  return [
+    el("div", { class: "card" }, select, el("span", { class: "muted" }, "По текущему балансу монет")),
+    el("div", { class: "card" }, data.entries.length ? el("ul", { class: "list" }, rows) : el("span", { class: "muted" }, "Пока здесь никого нет."), mine),
+  ];
+}
+
+async function pulseView(container, classId) {
+  const classes = await api("/api/classes");
+  if (!classes.length) return [el("div", { class: "card" }, el("span", { class: "muted" }, "Классов пока нет."))];
+  const sorted = [...classes].sort((a, b) => (b.own - a.own) || a.name.localeCompare(b.name, "ru", { numeric: true }));
+  // по умолчанию — свой (или любой) класс, где больше всего учеников
+  const busiest = [...classes].sort((a, b) => (b.own - a.own) || (b.students - a.students))[0];
+  const id = classId || busiest.id;
+  const p = await api("/api/pulse/" + id);
+  const select = el("select", { id: "pulse-class", "aria-label": "Класс", onchange: e => render(() => pulseView(container, e.target.value)) },
+    sorted.map(c => el("option", { value: c.id }, `${c.name}${c.own ? " · мой класс" : ""} · ${c.students} уч.`)));
+  select.value = String(id);
+  const share = p.students ? Math.round(100 * p.active / p.students) : 0;
+  const trend = p.active_before ? ` (на прошлой неделе ${p.active_before})` : "";
+  let contest;
+  if (p.eligible && p.place_total) contest = el("span", { class: "pill good" }, `${p.place_total}-е место по сумме, ${p.place_average}-е в среднем`);
+  else if (p.eligible) contest = el("span", { class: "pill good" }, "допуск есть");
+  else contest = el("span", { class: "pill warn" }, `до допуска не хватает активных: ${p.need_active}`);
+  const list = (items, render) => el("ul", { class: "list" }, items.map(render));
+  return [
+    el("div", { class: "card" }, select, el("span", { class: "muted" }, `Неделя с ${p.week_start}`)),
+    el("div", { class: "card" },
+      el("h2", {}, `👥 Активны ${p.active} из ${p.students}${trend}`),
+      el("div", { class: "bar", role: "img", "aria-label": `${share}% активны` }, el("i", { style: `width:${share}%` })),
+      el("div", {}, "🏁 Соревнование классов: ", contest),
+      el("div", { class: "muted" }, `🌟 Успехов за неделю: ${p.successes_week} · 🏅 новых достижений: ${p.new_achievements}`)),
+    p.streaks.length ? el("div", { class: "card" }, el("h2", {}, "🔥 Серии"),
+      list(p.streaks, s => el("li", {}, el("span", { class: "name" }, `${s.name} · ${s.quest}`), el("span", { class: "num" }, `${s.days} дн.`)))) : null,
+    el("div", { class: "card" }, el("h2", {}, `⚠️ Нужна помощь · ${p.need_help.length}`),
+      p.need_help.length ? list(p.need_help, s => el("li", {}, el("span", { class: "name" }, s.name), el("span", { class: "num" }, s.quest)))
+        : el("span", { class: "muted" }, "Отклонённых и не пересданных ответов нет.")),
+    el("div", { class: "card" }, el("h2", {}, `😴 Не участвуют 2+ недели · ${p.inactive.length}`),
+      p.inactive.length ? list(p.inactive, s => el("li", {}, el("span", { class: "name" }, s.name), el("span", { class: "num" }, s.last ? "был " + s.last : "ещё ни разу")))
+        : el("span", { class: "muted" }, "Неактивных нет — все в деле 👏")),
+    el("div", { class: "card" }, el("h2", {}, "Все ученики"),
+      list(p.roster, s => el("li", {}, el("span", { class: "name" }, s.name), s.active ? el("span", { class: "pill good" }, "активен") : el("span", { class: "num" }, "—")))),
+  ];
+}
+
+// --- каркас ---
+
+let content;
+async function render(view) {
+  content.replaceChildren(el("div", { class: "card muted" }, "Загрузка…"));
+  try {
+    const parts = await view();
+    content.replaceChildren(...parts.filter(Boolean));
+  } catch (e) {
+    if (e.status === 401) { store(null); return message("Нужен вход", e.message); }
+    content.replaceChildren(el("div", { class: "card" }, el("b", {}, "Не удалось загрузить"), el("span", { class: "muted" }, e.message)));
+  }
+}
+
+function shell() {
+  const tabs = me.staff
+    ? [["pulse", "Пульс класса", () => pulseView(content)], ["rating", "Рейтинг", () => ratingView(content)]]
+    : [["profile", "Профиль", async () => profileView()], ["rating", "Рейтинг", () => ratingView(content)]];
+  const nav = el("nav", { class: "tabs", role: "tablist" });
+  for (const [id, title, view] of tabs) {
+    nav.append(el("button", { role: "tab", id: "tab-" + id, "aria-selected": "false", onclick: (ev) => {
+      for (const b of nav.children) b.setAttribute("aria-selected", String(b === ev.currentTarget));
+      render(view);
+    } }, title));
+  }
+  const place = me.class ? `${me.role_title} · ${me.class}` : me.classes.length ? `${me.role_title} · ${me.classes.join(", ")}` : me.role_title;
+  content = el("main", { class: "content" });
+  app.replaceChildren(
+    el("header", { class: "top" },
+      el("div", { class: "who" }, el("b", {}, me.name), el("span", {}, place)),
+      me.balance != null ? el("div", { class: "balance" }, el("b", {}, me.balance.toLocaleString("ru-RU")), el("span", {}, "монет")) : null),
+    nav, content,
+    el("div", { class: "foot" }, "Веб-версия только показывает данные. Квесты, проверка и монеты — в боте."));
+  nav.firstChild.setAttribute("aria-selected", "true");
+  render(tabs[0][2]);
+}
+
+(async () => {
+  try {
+    if (window.WebApp && window.WebApp.ready) window.WebApp.ready();
+    await login();
+    me = await api("/api/me");
+    shell();
+  } catch (e) {
+    store(null);
+    message("Сферум. Актив", e.message || "Не удалось войти");
+  }
+})();
+</script>
+</body>
+</html>

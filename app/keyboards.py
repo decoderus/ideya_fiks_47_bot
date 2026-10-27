@@ -12,7 +12,7 @@ from app.db.models import (
     Submission,
     SubmissionStatus,
 )
-from app.max_api import callback_button
+from app.max_api import callback_button, link_button
 from app.max_api import keyboard as _keyboard
 from app.quiz_bank import LETTERS
 
@@ -25,7 +25,7 @@ def keyboard(rows: list[list[dict]]) -> list[dict]:
     (нажатие работает как отмена). Регистрацию не трогает: у незарегистрированного
     меню ещё нет. Само главное меню строится без неё (menu_for)."""
     buttons = [b for row in rows for b in row]
-    payloads = [b["payload"] for b in buttons]
+    payloads = [b.get("payload", "") for b in buttons]  # у кнопки-ссылки payload нет
     has_exit = "menu:main" in payloads or "cancel" in payloads  # «Отмена» тоже ведёт в меню
     if not has_exit and not any(p.startswith("reg:") for p in payloads):
         home = callback_button(HOME, "menu:main")
@@ -156,6 +156,7 @@ def _short(text: str, limit: int = 40) -> str:
 
 HELP_ITEM = ("ℹ️ Помощь", "menu:help")
 SURVEY_ITEM = ("📋 Опрос", "sv:start")
+WEB_ITEM = ("🌐 Веб-версия", "web:open")
 
 
 def with_count(text: str, count: int) -> str:
@@ -169,6 +170,7 @@ def menu_for(
     help_first: bool = False,
     counts: dict[str, int] | None = None,
     survey: bool = False,
+    web: bool = False,
 ) -> list[dict]:
     """help_first — пользователь ещё не открывал справку: она первой кнопкой, иначе — последней.
     counts — сколько ждёт действия в разделе (payload раздела -> число), показывается на кнопке.
@@ -176,6 +178,8 @@ def menu_for(
     items = [HELP_ITEM, *MENUS[role]] if help_first else [*MENUS[role], HELP_ITEM]
     if survey:
         items.insert(0, SURVEY_ITEM)
+    if web:
+        items.insert(len(items) - (0 if help_first else 1), WEB_ITEM)
     counts = counts or {}
     items = [(with_count(text, counts.get(payload, 0)), payload) for text, payload in items]
     if role == Role.moderator and moderator_review:
@@ -1838,3 +1842,10 @@ def export_periods(class_id: int) -> list[dict]:
 
 def export_done(back: str) -> list[dict]:
     return keyboard([[callback_button("« Назад", back)]])
+
+
+# --- веб-версия ---
+
+
+def web_link(url: str) -> list[dict]:
+    return keyboard([[link_button("🌐 Открыть веб-версию", url)]])
