@@ -275,15 +275,16 @@ class ShopMixin:
                     )
                 left = coins(user.balance - reward.price)
                 if reward.kind == RewardKind.lottery:
+                    # Ученику — только что можно выиграть и проиграть; шансы видит админ
                     risk = (
-                        f"С шансом {reward.loss_chance}% — критический провал: колесо заберёт "
-                        f"{coins(reward.loss or 0)} (баланс не уйдёт в минус).\n"
+                        f"Можно и проиграть: колесо заберёт {coins(reward.loss or 0)} "
+                        "(баланс не уйдёт в минус).\n"
                         if reward.loss_chance
                         else ""
                     )
                     return (
                         f"🎡 Крутить «{reward.title}» за {coins(reward.price)}?\n"
-                        f"С шансом {reward.win_chance}% выиграете {coins(reward.prize or 0)}.\n"
+                        f"Можно выиграть {coins(reward.prize or 0)}.\n"
                         f"{risk}После вращения останется {left} (если не повезёт).",
                         kb.shop_confirm(reward.id),
                     )
@@ -362,13 +363,13 @@ class ShopMixin:
         lines += ["", f"Цена: {coins(reward.price)}"]
         if reward.kind == RewardKind.lottery:
             lines.append(
-                f"🎡 Шанс {reward.win_chance}% выиграть {coins(reward.prize or 0)}. "
+                f"🎡 Можно выиграть {coins(reward.prize or 0)}. "
                 "Крутить можно сколько угодно раз."
             )
             if reward.loss_chance:
                 lines.append(
-                    f"💥 Но с шансом {reward.loss_chance}% — критический провал: "
-                    f"колесо заберёт {coins(reward.loss or 0)} (баланс не уйдёт в минус)."
+                    f"💥 Но можно и проиграть: колесо заберёт {coins(reward.loss or 0)} "
+                    "(баланс не уйдёт в минус)."
                 )
         if reward.stock is not None:
             lines.append(f"Осталось: {reward.stock} шт.")

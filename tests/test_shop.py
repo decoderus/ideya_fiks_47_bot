@@ -347,11 +347,13 @@ async def test_wheel_win(env, monkeypatch):
 
     await bot.handle_update(cb(5, f"shop:open:{rid}"))
     answer = client.answers[-1]
-    assert "Шанс 5% выиграть 10000 монет" in answer["text"]
+    assert "Можно выиграть 10000 монет" in answer["text"]
+    assert "%" not in answer["text"]  # шансы ученику не показываем
     keyboard = [a for a in answer["attachments"] if a["type"] == "inline_keyboard"]
     assert any(b["text"] == "🎡 Крутить за 200" for b in buttons(keyboard))
     await bot.handle_update(cb(5, f"shop:buy:{rid}"))
-    assert "С шансом 5% выиграете 10000 монет" in client.answers[-1]["text"]
+    assert "Можно выиграть 10000 монет" in client.answers[-1]["text"]
+    assert "%" not in client.answers[-1]["text"]
 
     sent_before = len(client.sent)
     await bot.handle_update(cb(5, f"shop:buy_ok:{rid}"))
@@ -440,9 +442,10 @@ async def test_wheel_critical_failure(env, monkeypatch):
     rid = await make_wheel(bot, sessions, loss=True)
 
     await bot.handle_update(cb(5, f"shop:open:{rid}"))
-    assert "с шансом 5% — критический провал: колесо заберёт 10000 монет" in client.answers[-1]["text"]
+    assert "можно и проиграть: колесо заберёт 10000 монет" in client.answers[-1]["text"]
     await bot.handle_update(cb(5, f"shop:buy:{rid}"))
-    assert "критический провал: колесо заберёт 10000 монет" in client.answers[-1]["text"]
+    assert "Можно и проиграть: колесо заберёт 10000 монет" in client.answers[-1]["text"]
+    assert "%" not in client.answers[-1]["text"]
 
     monkeypatch.setattr(shop_service, "rng", FixedRng(0.07))
     sent_before = len(client.sent)
