@@ -1708,25 +1708,25 @@ async def test_read_reward(env):
     await send_broadcast(bot, "Второе")
     first = next(m for m in announcements(client) if m[0] == 5 and "Первое" in m[1])
 
-    # «Прочитано»: +5, в меню видно начисление и новый баланс
+    # «Прочитано»: +10, в меню видно начисление и новый баланс
     await bot.handle_update(cb(5, buttons(first[2])[0]["payload"]))
     to, text, _ = client.sent[-1]
-    assert to == 5 and "+5 монет за прочтение" in text and "Баланс: 5 монет" in text
-    assert (await get_user(sessions, 5)).balance == 5
+    assert to == 5 and "+10 монет за прочтение" in text and "Баланс: 10 монет" in text
+    assert (await get_user(sessions, 5)).balance == 10
 
     # повторное нажатие ничего не даёт
     await bot.handle_update(cb(5, buttons(first[2])[0]["payload"]))
     assert "за прочтение" not in client.sent[-1][1]
-    assert (await get_user(sessions, 5)).balance == 5
+    assert (await get_user(sessions, 5)).balance == 10
 
-    # открытие из истории — тоже первое прочтение, тоже +5, но один раз
+    # открытие из истории — тоже первое прочтение, тоже +10, но один раз
     await bot.handle_update(cb(5, "inbox:0"))
     second = next(b for b in inbox_buttons(client.answers[-1]) if "Второе" in b["text"])
     await bot.handle_update(cb(5, second["payload"]))
-    assert "+5 монет за прочтение. Баланс: 10 монет" in client.sent[-1][1]
+    assert "+10 монет за прочтение. Баланс: 20 монет" in client.sent[-1][1]
     await bot.handle_update(cb(5, second["payload"]))
     assert "за прочтение" not in client.sent[-1][1]
-    assert (await get_user(sessions, 5)).balance == 10
+    assert (await get_user(sessions, 5)).balance == 20
 
     # учителю монеты не начисляются
     to_teacher = next(m for m in announcements(client) if m[0] == 7)
@@ -1736,7 +1736,7 @@ async def test_read_reward(env):
     # начисления видны в истории монет ученика
     student = await get_user(sessions, 5)
     await bot.handle_update(cb(ADMIN, f"coins:st:{student.id}"))
-    assert client.answers[-1]["text"].count("+5 · ") == 2
+    assert client.answers[-1]["text"].count("+10 · ") == 2
     assert "Прочитано оповещение" in client.answers[-1]["text"]
 
 

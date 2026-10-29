@@ -20,7 +20,7 @@ from app.services.classes import teachers_of
 TEXT_MAX = 3500
 
 # Монет ученику за прочтение оповещения (один раз за каждое)
-READ_REWARD = 5
+READ_REWARD = 10
 
 
 class BroadcastError(Exception):
