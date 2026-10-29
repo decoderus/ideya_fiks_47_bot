@@ -65,6 +65,7 @@ CALLBACK_ROUTES: dict[str, str] = {
     "menu:help": "_common_callback",
     "menu:profile": "_common_callback",
     "menu:stats": "_common_callback",
+    "stat:": "_common_callback",
     "cancel": "_common_callback",
     "rem:": "_common_callback",
     "reg:": "_common_callback",
@@ -428,8 +429,8 @@ class Bot(
             return await self._help(session, user)
         if payload == "menu:profile":
             return await self._profile(session, user)
-        if payload == "menu:stats":
-            return await self._stats(session, user)
+        if payload == "menu:stats" or payload.startswith("stat:"):
+            return await self._stats(session, user, payload)
         if payload in ("rem:off", "rem:on"):
             return await self._reminders_toggle(session, user, payload == "rem:off")
         if payload == kb.LOCKED:

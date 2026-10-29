@@ -262,6 +262,10 @@ def stats(admin: bool = True, unchecked: int = 0) -> list[dict]:
     return keyboard(
         [
             registrations,
+            [
+                callback_button("👥 Ученики по классам", "stat:classes"),
+                callback_button("👩‍🏫 Учителя", "stat:teachers"),
+            ],
             logs,
             *([[callback_button("📋 Опрос учеников и учителей", "sv:admin")]] if admin else []),
             *([[callback_button("📥 Выгрузка в таблицу", "jr:xls:0")]] if admin else []),
@@ -269,6 +273,10 @@ def stats(admin: bool = True, unchecked: int = 0) -> list[dict]:
             [callback_button("« В меню", "menu:main")],
         ]
     )
+
+
+def stats_back() -> list[dict]:
+    return keyboard([[callback_button("📊 К статистике", "menu:stats")]])
 
 
 LOG_PAGE = 15

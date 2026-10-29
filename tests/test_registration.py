@@ -466,10 +466,28 @@ async def test_stats(env):
         "• админов: 1",
         "• не завершили регистрацию: 2",
         "⏳ Заявок на роль учителя: 1",
+    ):
+        assert line in text.splitlines(), line
+    assert "Учителева Анна" not in text and "10В" not in text  # подробности — на своих кнопках
+    got = {(b["text"], b["payload"]) for b in buttons(client.answers[-1]["attachments"])}
+    assert ("👥 Ученики по классам", "stat:classes") in got
+    assert ("👩‍🏫 Учителя", "stat:teachers") in got
+
+    await bot.handle_update(cb(ADMIN, "stat:classes"))
+    text = client.answers[-1]["text"]
+    for line in (
         "1–4 классы — 0",
         "5–9 классы — 2",
         "10–11 классы — 1",
         "  10В: 1",
+    ):
+        assert line in text.splitlines(), line
+    assert "menu:stats" in [b["payload"] for b in buttons(client.answers[-1]["attachments"])]
+
+    await bot.handle_update(cb(ADMIN, "stat:teachers"))
+    text = client.answers[-1]["text"]
+    for line in (
+        "👩‍🏫 Учителя: 2",
         "• Учителева Анна — 5Б",
         "• Без Классов — классы не назначены",
         "Классы без учителя: 3А, 10В, Тестовый класс",
@@ -477,6 +495,8 @@ async def test_stats(env):
         assert line in text.splitlines(), line
 
     await bot.handle_update(cb(7, "menu:stats"))
+    assert "доступ" in client.answers[-1]["notification"].lower()
+    await bot.handle_update(cb(7, "stat:teachers"))
     assert "доступ" in client.answers[-1]["notification"].lower()
 
 

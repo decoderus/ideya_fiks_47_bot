@@ -508,10 +508,15 @@ class SchoolAdminMixin:
 
     # --- статистика ---
 
-    async def _stats(self, session: AsyncSession, user: User) -> Screen | str:
+    async def _stats(self, session: AsyncSession, user: User, payload: str) -> Screen | str:
+        """Кратко — пользователи по ролям; ученики по классам и учителя — на своих кнопках."""
         if user.role not in (Role.admin, Role.moderator):
             return "Раздел доступен админам и модераторам."
         data = await school_stats.school(session)
+        if payload == "stat:classes":
+            return self._stats_classes(data, await classes_service.categories(session))
+        if payload == "stat:teachers":
+            return self._stats_teachers(data)
         by_role = data["by_role"]
         lines = [
             "📊 Статистика",
@@ -525,27 +530,33 @@ class SchoolAdminMixin:
         ]
         if data["teacher_requests"]:
             lines.append(f"⏳ Заявок на роль учителя: {data['teacher_requests']}")
+        return "\n".join(lines), kb.stats(
+            admin=user.role == Role.admin, unchecked=await school_stats.unchecked_count(session)
+        )
 
-        lines += ["", "Ученики по классам:"]
+    @staticmethod
+    def _stats_classes(data: dict, categories: list[tuple[str, str]]) -> Screen:
+        lines = ["👥 Ученики по классам", ""]
         if not data["classes"]:
             lines.append("Классов пока нет.")
-        for key, title in await classes_service.categories(session):
+        for key, title in categories:
             group = [(c, n) for c, n in data["classes"] if classes_service.category_of(c) == key]
             lines.append(f"{title} — {sum(n for _, n in group)}")
             lines.append("  " + " · ".join(f"{c.name}: {n}" for c, n in group))
+        return "\n".join(lines), kb.stats_back()
 
+    @staticmethod
+    def _stats_teachers(data: dict) -> Screen:
         teachers = data["teachers"]
-        lines += ["", f"Учителя: {len(teachers)}"]
+        lines = [f"👩‍🏫 Учителя: {len(teachers)}", ""]
         for t in teachers:
             names = ", ".join(c.name for c in t.teacher_classes) or "классы не назначены"
             lines.append(f"• {t.display_name} — {names}")
         covered = {c.id for t in teachers for c in t.teacher_classes}
         without = [c.name for c, _ in data["classes"] if c.id not in covered]
         if without:
-            lines.append("Классы без учителя: " + ", ".join(without))
-        return "\n".join(lines), kb.stats(
-            admin=user.role == Role.admin, unchecked=await school_stats.unchecked_count(session)
-        )
+            lines += ["", "Классы без учителя: " + ", ".join(without)]
+        return "\n".join(lines), kb.stats_back()
 
     # --- журналы (только админ) ---
 
